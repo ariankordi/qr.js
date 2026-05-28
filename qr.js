@@ -97,6 +97,7 @@ const ECCLEVEL_H = 2;
 /**
  * GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
  * invariant: GF256_MAP[GF256_INVMAP[i]] == i for all i in [1,256)
+ * @type {number[]}
  */
 const GF256_MAP = [];
 const GF256_INVMAP = [-1];
@@ -117,7 +118,8 @@ for (var i = 0, v = 1; i < 255; ++i) {
  */
 const GF256_GENPOLY = [[]];
 for (var i = 0; i < 30; ++i) {
-	const prevpoly = GF256_GENPOLY[i]; const poly = [];
+	const prevpoly = GF256_GENPOLY[i];
+	const poly = [];
 	for (let j = 0; j <= i; ++j) {
 		const a = (j < i ? GF256_MAP[prevpoly[j]] : 0);
 		const b = GF256_MAP[(i + (prevpoly[j - 1] || 0)) % 255];
@@ -135,25 +137,26 @@ for (var i = 0; i < 45; ++i) {
 /**
  * mask functions in terms of row # and column #
  * (cf. Table 20 in JIS X 0510:2004 p. 42)
+ * @type {Array<(i: number, j: number) => boolean>}
  */
 const MASKFUNCS = [
-	function(i,j) { return (i + j) % 2 == 0; },
-	function(i,j) { return i % 2 == 0; },
-	function(i,j) { return j % 3 == 0; },
-	function(i,j) { return (i + j) % 3 == 0; },
-	function(i,j) { return (((i / 2) | 0) + ((j / 3) | 0)) % 2 == 0; },
-	function(i,j) { return (i * j) % 2 + (i * j) % 3 == 0; },
-	function(i,j) { return ((i * j) % 2 + (i * j) % 3) % 2 == 0; },
-	function(i,j) { return ((i + j) % 2 + (i * j) % 3) % 2 == 0; }];
+	(i,j) => (i + j) % 2 == 0,
+	(i,j) => i % 2 == 0,
+	(i,j) => j % 3 == 0,
+	(i,j) => (i + j) % 3 == 0,
+	(i,j) => ((Math.trunc(i / 2)) + (Math.trunc(j / 3))) % 2 == 0,
+	(i,j) => (i * j) % 2 + (i * j) % 3 == 0,
+	(i,j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
+	(i,j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
 
 /** returns true when the version information has to be embeded. */
-const needsverinfo = function(ver) { return ver > 6; };
+const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
 
 /** returns the size of entire QR code for given version. */
-const getsizebyver = function(ver) { return 4 * ver + 17; };
+const getByteSizeForVersion = (/** @type {number} */ ver) => 4 * ver + 17;
 
 /** returns the number of bits available for code words in this version. */
-const nfullbits = function(ver) {
+const nfullbits = function(/** @type {number} */ ver) {
 	/*
 	 * |<--------------- n --------------->|
 	 * |        |<----- n-17 ---->|        |
@@ -189,7 +192,7 @@ const nfullbits = function(ver) {
 	 */
 	const v = VERSIONS[ver];
 	let nbits = 16 * ver * ver + 128 * ver + 64; // finder, timing and format info.
-	if (needsverinfo(ver)) {nbits -= 36;} // version information
+	if (needsVersionInfo(ver)) {nbits -= 36;} // version information
 	if (v[2].length) { // alignment patterns
 		nbits -= 25 * v[2].length * v[2].length - 10 * v[2].length - 55;
 	}
@@ -225,13 +228,13 @@ const getmaxdatalen = function(ver, mode, ecclevel) {
 	const nbits = ndatabits(ver, ecclevel) - 4 - ndatalenbits(ver, mode); // 4 for mode bits
 	switch (mode) {
 		case MODE_NUMERIC:
-			return ((nbits / 10) | 0) * 3 + (nbits % 10 < 4 ? 0 : nbits % 10 < 7 ? 1 : 2);
+			return (Math.trunc(nbits / 10)) * 3 + (nbits % 10 < 4 ? 0 : nbits % 10 < 7 ? 1 : 2);
 		case MODE_ALPHANUMERIC:
-			return ((nbits / 11) | 0) * 2 + (nbits % 11 < 6 ? 0 : 1);
+			return (Math.trunc(nbits / 11)) * 2 + (nbits % 11 < 6 ? 0 : 1);
 		case MODE_OCTET:
-			return (nbits / 8) | 0;
+			return Math.trunc(nbits / 8);
 		case MODE_KANJI:
-			return (nbits / 13) | 0;
+			return Math.trunc(nbits / 13);
 	}
 };
 
@@ -442,14 +445,14 @@ const augumentbch = function(poly, p, genpoly, q) {
  * the remaining ones.
  */
 const makebasematrix = function(ver) {
-	const v = VERSIONS[ver]; const n = getsizebyver(ver);
+	const v = VERSIONS[ver]; const n = getByteSizeForVersion(ver);
 	const matrix = []; const reserved = [];
 	for (var i = 0; i < n; ++i) {
 		matrix.push([]);
 		reserved.push([]);
 	}
 
-	const blit = function(y, x, h, w, bits) {
+	const blit = function(/** @type {number} */ y, /** @type {number} */ x, /** @type {number} */ h, /** @type {number} */ w, /** @type {number[]} */ bits) {
 		for (let i = 0; i < h; ++i) {
 			for (let j = 0; j < w; ++j) {
 				matrix[y + i][x + j] = (bits[i] >> j) & 1;
@@ -480,7 +483,7 @@ const makebasematrix = function(ver) {
 	}
 
 	// version information
-	if (needsverinfo(ver)) {
+	if (needsVersionInfo(ver)) {
 		const code = augumentbch(ver, 6, 0x1f25, 12);
 		let k = 0;
 		for (var i = 0; i < 6; ++i) {
@@ -699,7 +702,21 @@ const generate = function(data, ver, mode, ecclevel, mask) {
  *   you're doing.
  */
 const QRCode = {
-	generate(data, options = {}) {
+	/** @typedef {string|ArrayLike<number>} InputData */
+	/**
+	 * @typedef {Object} QRCodeOptions
+	 * @property {number} [version] - Version in [1,40]; defaults to auto-select.
+	 * @property {'numeric'|'alphanumeric'|'octet'} [mode] -
+	 * One of 'numeric', 'alphanumeric', 'octet'; defaults to auto-select.
+	 * @property {'L'|'M'|'Q'|'H'} [ecclevel] - One of 'L', 'M', 'Q', 'H'; defaults to 'L'.
+	 * @property {number} [mask] - Mask in [0,7]; defaults to auto-select.
+	 * @property {number} [modulesize] - Size of each module in pixels; defaults to 5px.
+	 * @property {number} [margin] - Margin in modules; defaults to 4.
+	 * @property {string} [unit] - Unit for non-px sizes (e.g., 'mm', 'cm'); defaults to 'px'.
+	 * @property {number} [ratio] - Ratio for non-px sizes; defaults to 1.
+	 */
+
+	generate(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const MODES = {'numeric': MODE_NUMERIC, 'alphanumeric': MODE_ALPHANUMERIC,
 			'octet': MODE_OCTET};
 		const ECCLEVELS = {'L': ECCLEVEL_L, 'M': ECCLEVEL_M, 'Q': ECCLEVEL_Q,
@@ -759,8 +776,8 @@ const QRCode = {
 		return generate(data, ver, mode, ecclevel, mask);
 	},
 
-	generateHTML(data, options = {}) {
-		const matrix = QRCode['generate'](data, options);
+	generateHTML(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
+		const matrix = QRCode.generate(data, options);
 		const modsize = Math.max(options.modulesize || 5, 0.5);
 		const unit = options.unit || 'px';
 		const ratio = options.ratio || 1;
@@ -775,7 +792,7 @@ const QRCode = {
 			for (let j = 0; j < n; ++j) {
 				const size = unit === 'px'
 					? 'width:' + modsize + 'px;height:' + modsize + 'px'
-					: 'width:' + modsize * ratio + unit + '; height:' + modsize * ratio + unit
+					: 'width:' + modsize * ratio + unit + '; height:' + modsize * ratio + unit;
 				html.push('<td style="' + size +
 					(matrix[i][j] ? ';background:#000' : '') + '" ' +
 					'part="' + (matrix[i][j] ? 'module-fg' : 'module-bg') + '" ' + '></td>');
@@ -787,8 +804,8 @@ const QRCode = {
 		return e;
 	},
 
-	generateSVG(data, options = {}) {
-		const matrix = QRCode['generate'](data, options);
+	generateSVG(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
+		const matrix = QRCode.generate(data, options);
 		const n = matrix.length;
 		const modsize = Math.max(options.modulesize || 5, 0.5);
 		const margin = Math.max(options.margin === null ? 4 : options.margin, 0.0);
@@ -800,22 +817,23 @@ const QRCode = {
 		e.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
 		e.setAttribute('style', 'shape-rendering:crispEdges');
 		if (options.modulesize) {
-			e.setAttribute('width', size);
-			e.setAttribute('height', size);
+			e.setAttribute('width', String(size));
+			e.setAttribute('height', String(size));
 		}
 
 		const svg = [
 			'<style scoped>.bg{fill:#FFF}.fg{fill:#000}</style>',
 			'<rect class="bg" x="0" y="0"',
-			'width="' + size + '" height="' + size + '"/>',
+			'width="' + size + '" height="' + size + '"/>'
 		];
 
 		let yo = margin * modsize;
 		for (let y = 0; y < n; ++y) {
 			let xo = margin * modsize;
 			for (let x = 0; x < n; ++x) {
-				if (matrix[y][x])
-					{svg.push('<rect x="' + xo + '" y="' + yo + '"', common);}
+				if (matrix[y][x]) {
+					svg.push('<rect x="' + xo + '" y="' + yo + '"', common);
+				}
 				xo += modsize;
 			}
 			yo += modsize;
@@ -824,10 +842,10 @@ const QRCode = {
 		return e;
 	},
 
-	generateCanvas(data, options = {}) {
-		const matrix = QRCode['generate'](data, options);
+	generateCanvas(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
+		const matrix = QRCode.generate(data, options);
 		const modsize = Math.max(options.modulesize || 5, 0.5);
-		const margin = Math.max(options.margin === null ? 4 : options.margin, 0.0);
+		const margin = Math.max(options.margin === null ? 4 : options.margin, 0);
 		const n = matrix.length;
 		const size = modsize * (n + 2 * margin);
 
@@ -852,11 +870,11 @@ const QRCode = {
 		return canvas;
 	},
 
-	generateImage : (data, options = {}, type) =>
+	generateImage: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}, type) =>
 		QRCode.generateCanvas(data, options).toDataURL(type),
 
-	generatePNG : (data, options = {}) =>
+	generatePNG: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) =>
 		QRCode.generateImage(data, options, 'image/png'),
-};;
+};
 
 export default QRCode;
