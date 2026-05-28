@@ -804,7 +804,7 @@ class QRCode {
 		return e;
 	}
 
-	static generatePNG(data, options = {}) {
+	static generateCanvas(data, options = {}) {
 		var matrix = QRCode['generate'](data, options);
 		var modsize = Math.max(options.modulesize || 5, 0.5);
 		var margin = Math.max(options.margin !== null ? options.margin : 4, 0.0);
@@ -829,8 +829,14 @@ class QRCode {
 			}
 		}
 		//context.fillText('evaluation: ' + evaluatematrix(matrix), 10, 10);
-		return canvas.toDataURL();
+		return canvas;
 	}
+
+	static generateImage = (data, options = {}, type) =>
+		QRCode.generateCanvas(data, options).toDataURL(type);
+
+	static generatePNG = (data, options = {}) =>
+		QRCode.generateImage(data, options, 'image/png');
 };
 
 export default QRCode;
