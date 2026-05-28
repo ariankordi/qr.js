@@ -20,5 +20,15 @@
   "license": "CC0-1.0",
   "files": [
     "qr.js"
-  ]
+  ],
+  "devDependencies": {
+    "@cdklabs/eslint-plugin": "^2.0.4",
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
+    "@eslint/js": "^9.39.4",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-jsdoc": "^62.9.0",
+    "eslint-plugin-unicorn": "^64.0.0",
+    "globals": "^17.6.0"
+  }
 }
