@@ -2,6 +2,7 @@
   "name": "qrjs",
   "main": "qr.js",
   "version": "0.2.0",
+  "type": "module",
   "description": "QR code generator in JavaScript",
   "homepage": "https://github.com/ariankordi/qr.js",
   "keywords": [

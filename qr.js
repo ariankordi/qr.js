@@ -5,15 +5,7 @@
  * recognize the public domain the terms of Creative Commons CC0 license
  * apply. In the other words, you can always do what you want.
  */
-(function(root, name, definition) {
-	if (typeof define === 'function' && define.amd) {
-		define([], definition);
-	} else if (typeof module === 'object' && module.exports) {
-		module.exports = definition();
-	} else {
-		root[name] = definition();
-	}
-})(this, 'QRCode', function() {
+
 /* Quick overview: QR code composed of 2D array of modules (a rectangular
  * area that conveys one bit of information); some modules are fixed to help
  * the recognition of the code, and remaining data modules are further divided
@@ -657,14 +649,13 @@ var generate = function(data, ver, mode, ecclevel, mask) {
 //   4 (white modules). the specficiation mandates the margin no less than 4
 //   modules, so it is better not to alter this value unless you know what
 //   you're doing.
-var QRCode = {
-	'generate': function(data, options) {
+class QRCode {
+	static generate(data, options = {}) {
 		var MODES = {'numeric': MODE_NUMERIC, 'alphanumeric': MODE_ALPHANUMERIC,
 			'octet': MODE_OCTET};
 		var ECCLEVELS = {'L': ECCLEVEL_L, 'M': ECCLEVEL_M, 'Q': ECCLEVEL_Q,
 			'H': ECCLEVEL_H};
 
-		options = options || {};
 		var ver = options.version || -1;
 		var ecclevel = ECCLEVELS[(options.ecclevel || 'L').toUpperCase()];
 		var mode = options.mode ? MODES[options.mode.toLowerCase()] : -1;
@@ -707,10 +698,9 @@ var QRCode = {
 		if (mask != -1 && (mask < 0 || mask > 8)) throw 'invalid mask';
 
 		return generate(data, ver, mode, ecclevel, mask);
-	},
+	}
 
-	'generateHTML': function(data, options) {
-		options = options || {};
+	static generateHTML(data, options = {}) {
 		var matrix = QRCode['generate'](data, options);
 		var modsize = Math.max(options.modulesize || 5, 0.5);
 		var unit = options.unit || 'px';
@@ -736,10 +726,9 @@ var QRCode = {
 		e.className = 'qrcode';
 		e.innerHTML = html.join('') + '</table>';
 		return e;
-	},
+	}
 
-	'generateSVG': function(data, options) {
-		options = options || {};
+	static generateSVG(data, options = {}) {
 		var matrix = QRCode['generate'](data, options);
 		var n = matrix.length;
 		var modsize = Math.max(options.modulesize || 5, 0.5);
@@ -752,9 +741,9 @@ var QRCode = {
 		e.setAttribute('viewBox', '0 0 '+size+' '+size);
 		e.setAttribute('style', 'shape-rendering:crispEdges');
 		if (options.modulesize) {
-            e.setAttribute('width', size);
-            e.setAttribute('height', size);
-        }
+			e.setAttribute('width', size);
+			e.setAttribute('height', size);
+		}
 
 		var svg = [
 			'<style scoped>.bg{fill:#FFF}.fg{fill:#000}</style>',
@@ -774,10 +763,9 @@ var QRCode = {
 		}
 		e.innerHTML = svg.join('');
 		return e;
-	},
+	}
 
-	'generatePNG': function(data, options) {
-		options = options || {};
+	static generatePNG(data, options = {}) {
 		var matrix = QRCode['generate'](data, options);
 		var modsize = Math.max(options.modulesize || 5, 0.5);
 		var margin = Math.max(options.margin !== null ? options.margin : 4, 0.0);
@@ -806,5 +794,4 @@ var QRCode = {
 	}
 };
 
-return QRCode;
-});
+export default QRCode;
