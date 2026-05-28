@@ -1,6 +1,8 @@
-/* qr.js -- QR code generator in Javascript (revision 2011-01-19)
- * Written by Kang Seonghoon <public+qrjs@mearie.org>.
+/**
+ * @file qr.js -- QR code generator in Javascript (revision 2011-01-19)
+ * @author Kang Seonghoon <public+qrjs@mearie.org>.
  *
+ * @license
  * This source code is in the public domain; if your jurisdiction does not
  * recognize the public domain the terms of Creative Commons CC0 license
  * apply. In the other words, you can always do what you want.
@@ -19,14 +21,18 @@
  * polynomial) of ECCs depend to the version and ECC level.
  */
 
-// per-version information (cf. JIS X 0510:2004 pp. 30--36, 71)
-//
-// [0]: the degree of generator polynomial by ECC levels
-// [1]: # of code blocks by ECC levels
-// [2]: left-top positions of alignment patterns
-//
-// the number in this table (in particular, [0]) does not exactly match with
-// the numbers in the specficiation. see augumenteccs below for the reason.
+// @ts-check
+
+/**
+ * per-version information (cf. JIS X 0510:2004 pp. 30--36, 71)
+ *
+ * [0]: the degree of generator polynomial by ECC levels
+ * [1]: # of code blocks by ECC levels
+ * [2]: left-top positions of alignment patterns
+ *
+ * the number in this table (in particular, [0]) does not exactly match with
+ * the numbers in the specficiation. see augumenteccs below for the reason.
+ */
 var VERSIONS = [
 	null,
 	[[10, 7,17,13], [ 1, 1, 1, 1], []],
@@ -82,8 +88,10 @@ var ALPHANUMERIC_OUT_REGEXP = /^[A-Z0-9 $%*+\-./:]*$/;
 // ECC levels (cf. Table 22 in JIS X 0510:2004 p. 45)
 var ECCLEVEL_L = 1, ECCLEVEL_M = 0, ECCLEVEL_Q = 3, ECCLEVEL_H = 2;
 
-// GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
-// invariant: GF256_MAP[GF256_INVMAP[i]] == i for all i in [1,256)
+/**
+ * GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
+ * invariant: GF256_MAP[GF256_INVMAP[i]] == i for all i in [1,256)
+ */
 var GF256_MAP = [], GF256_INVMAP = [-1];
 for (var i = 0, v = 1; i < 255; ++i) {
 	GF256_MAP.push(v);
@@ -91,13 +99,15 @@ for (var i = 0, v = 1; i < 255; ++i) {
 	v = (v * 2) ^ (v >= 128 ? 0x11d : 0);
 }
 
-// generator polynomials up to degree 30
-// (should match with polynomials in JIS X 0510:2004 Appendix A)
-//
-// generator polynomial of degree K is product of (x-\alpha^0), (x-\alpha^1),
-// ..., (x-\alpha^(K-1)). by convention, we omit the K-th coefficient (always 1)
-// from the result; also other coefficients are written in terms of the exponent
-// to \alpha to avoid the redundant calculation. (see also calculateecc below.)
+/**
+ * generator polynomials up to degree 30
+ * (should match with polynomials in JIS X 0510:2004 Appendix A)
+ *
+ * generator polynomial of degree K is product of (x-\alpha^0), (x-\alpha^1),
+ * ..., (x-\alpha^(K-1)). by convention, we omit the K-th coefficient (always 1)
+ * from the result; also other coefficients are written in terms of the exponent
+ * to \alpha to avoid the redundant calculation. (see also calculateecc below.)
+ */
 var GF256_GENPOLY = [[]];
 for (var i = 0; i < 30; ++i) {
 	var prevpoly = GF256_GENPOLY[i], poly = [];
@@ -109,14 +119,16 @@ for (var i = 0; i < 30; ++i) {
 	GF256_GENPOLY.push(poly);
 }
 
-// alphanumeric character mapping (cf. Table 5 in JIS X 0510:2004 p. 19)
+/** alphanumeric character mapping (cf. Table 5 in JIS X 0510:2004 p. 19) */
 var ALPHANUMERIC_MAP = {};
 for (var i = 0; i < 45; ++i) {
 	ALPHANUMERIC_MAP['0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'.charAt(i)] = i;
 }
 
-// mask functions in terms of row # and column #
-// (cf. Table 20 in JIS X 0510:2004 p. 42)
+/**
+ * mask functions in terms of row # and column #
+ * (cf. Table 20 in JIS X 0510:2004 p. 42)
+ */
 var MASKFUNCS = [
 	function(i,j) { return (i+j) % 2 == 0; },
 	function(i,j) { return i % 2 == 0; },
@@ -127,13 +139,13 @@ var MASKFUNCS = [
 	function(i,j) { return ((i*j) % 2 + (i*j) % 3) % 2 == 0; },
 	function(i,j) { return ((i+j) % 2 + (i*j) % 3) % 2 == 0; }];
 
-// returns true when the version information has to be embeded.
+/** returns true when the version information has to be embeded. */
 var needsverinfo = function(ver) { return ver > 6; };
 
-// returns the size of entire QR code for given version.
+/** returns the size of entire QR code for given version. */
 var getsizebyver = function(ver) { return 4 * ver + 17; };
 
-// returns the number of bits available for code words in this version.
+/** returns the number of bits available for code words in this version. */
 var nfullbits = function(ver) {
 	/*
 	 * |<--------------- n --------------->|
@@ -177,8 +189,10 @@ var nfullbits = function(ver) {
 	return nbits;
 };
 
-// returns the number of bits available for data portions (i.e. excludes ECC
-// bits but includes mode and length bits) in this version and ECC level.
+/**
+ * returns the number of bits available for data portions (i.e. excludes ECC
+ * bits but includes mode and length bits) in this version and ECC level.
+ */
 var ndatabits = function(ver, ecclevel) {
 	var nbits = nfullbits(ver) & ~7; // no sub-octet code words
 	var v = VERSIONS[ver];
@@ -186,8 +200,10 @@ var ndatabits = function(ver, ecclevel) {
 	return nbits;
 }
 
-// returns the number of bits required for the length of data.
-// (cf. Table 3 in JIS X 0510:2004 p. 16)
+/**
+ * returns the number of bits required for the length of data.
+ * (cf. Table 3 in JIS X 0510:2004 p. 16)
+ */
 var ndatalenbits = function(ver, mode) {
 	switch (mode) {
 	case MODE_NUMERIC: return (ver < 10 ? 10 : ver < 27 ? 12 : 14);
@@ -197,7 +213,7 @@ var ndatalenbits = function(ver, mode) {
 	}
 };
 
-// returns the maximum length of data possible in given configuration.
+/** returns the maximum length of data possible in given configuration. */
 var getmaxdatalen = function(ver, mode, ecclevel) {
 	var nbits = ndatabits(ver, ecclevel) - 4 - ndatalenbits(ver, mode); // 4 for mode bits
 	switch (mode) {
@@ -212,12 +228,14 @@ var getmaxdatalen = function(ver, mode, ecclevel) {
 	}
 };
 
-// checks if the given data can be encoded in given mode, and returns
-// the converted data for the further processing if possible. otherwise
-// returns null.
-//
-// this function does not check the length of data; it is a duty of
-// encode function below (as it depends on the version and ECC level too).
+/**
+ * checks if the given data can be encoded in given mode, and returns
+ * the converted data for the further processing if possible. otherwise
+ * returns null.
+ *
+ * this function does not check the length of data; it is a duty of
+ * encode function below (as it depends on the version and ECC level too).
+ */
 var validatedata = function(mode, data) {
 	switch (mode) {
 	case MODE_NUMERIC:
@@ -256,9 +274,11 @@ var validatedata = function(mode, data) {
 	}
 };
 
-// returns the code words (sans ECC bits) for given data and configurations.
-// requires data to be preprocessed by validatedata. no length check is
-// performed, and everything has to be checked before calling this function.
+/**
+ * returns the code words (sans ECC bits) for given data and configurations.
+ * requires data to be preprocessed by validatedata. no length check is
+ * performed, and everything has to be checked before calling this function.
+ */
 var encode = function(ver, mode, data, maxbuflen) {
 	var buf = [];
 	var bits = 0, remaining = 8;
@@ -318,13 +338,15 @@ var encode = function(ver, mode, data, maxbuflen) {
 	return buf;
 };
 
-// calculates ECC code words for given code words and generator polynomial.
-//
-// this is quite similar to CRC calculation as both Reed-Solomon and CRC use
-// the certain kind of cyclic codes, which is effectively the division of
-// zero-augumented polynomial by the generator polynomial. the only difference
-// is that Reed-Solomon uses GF(2^8), instead of CRC's GF(2), and Reed-Solomon
-// uses the different generator polynomial than CRC's.
+/**
+ * calculates ECC code words for given code words and generator polynomial.
+ *
+ * this is quite similar to CRC calculation as both Reed-Solomon and CRC use
+ * the certain kind of cyclic codes, which is effectively the division of
+ * zero-augumented polynomial by the generator polynomial. the only difference
+ * is that Reed-Solomon uses GF(2^8), instead of CRC's GF(2), and Reed-Solomon
+ * uses the different generator polynomial than CRC's.
+ */
 var calculateecc = function(poly, genpoly) {
 	var modulus = poly.slice(0);
 	var polylen = poly.length, genpolylen = genpoly.length;
@@ -340,13 +362,15 @@ var calculateecc = function(poly, genpoly) {
 	return modulus.slice(polylen);
 };
 
-// auguments ECC code words to given code words. the resulting words are
-// ready to be encoded in the matrix.
-//
-// the much of actual augumenting procedure follows JIS X 0510:2004 sec 8.7.
-// the code is simplified using the fact that the size of each code & ECC
-// blocks is almost same; for example, when we have 4 blocks and 46 data words
-// the number of code words in those blocks are 11, 11, 12, 12 respectively.
+/**
+ * auguments ECC code words to given code words. the resulting words are
+ * ready to be encoded in the matrix.
+ *
+ * the much of actual augumenting procedure follows JIS X 0510:2004 sec 8.7.
+ * the code is simplified using the fact that the size of each code & ECC
+ * blocks is almost same; for example, when we have 4 blocks and 46 data words
+ * the number of code words in those blocks are 11, 11, 12, 12 respectively.
+ */
 var augumenteccs = function(poly, nblocks, genpoly) {
 	var subsizes = [];
 	var subsize = (poly.length / nblocks) | 0, subsize0 = 0;
@@ -384,13 +408,15 @@ var augumenteccs = function(poly, nblocks, genpoly) {
 	return result;
 };
 
-// auguments BCH(p+q,q) code to the polynomial over GF(2), given the proper
-// genpoly. the both input and output are in binary numbers, and unlike
-// calculateecc genpoly should include the 1 bit for the highest degree.
-//
-// actual polynomials used for this procedure are as follows:
-// - p=10, q=5, genpoly=x^10+x^8+x^5+x^4+x^2+x+1 (JIS X 0510:2004 Appendix C)
-// - p=18, q=6, genpoly=x^12+x^11+x^10+x^9+x^8+x^5+x^2+1 (ibid. Appendix D)
+/**
+ * auguments BCH(p+q,q) code to the polynomial over GF(2), given the proper
+ * genpoly. the both input and output are in binary numbers, and unlike
+ * calculateecc genpoly should include the 1 bit for the highest degree.
+ *
+ * actual polynomials used for this procedure are as follows:
+ * - p=10, q=5, genpoly=x^10+x^8+x^5+x^4+x^2+x+1 (JIS X 0510:2004 Appendix C)
+ * - p=18, q=6, genpoly=x^12+x^11+x^10+x^9+x^8+x^5+x^2+1 (ibid. Appendix D)
+ */
 var augumentbch = function(poly, p, genpoly, q) {
 	var modulus = poly << q;
 	for (var i = p - 1; i >= 0; --i) {
@@ -399,13 +425,15 @@ var augumentbch = function(poly, p, genpoly, q) {
 	return (poly << q) | modulus;
 };
 
-// creates the base matrix for given version. it returns two matrices, one of
-// them is the actual one and the another represents the "reserved" portion
-// (e.g. finder and timing patterns) of the matrix.
-//
-// some entries in the matrix may be undefined, rather than 0 or 1. this is
-// intentional (no initialization needed!), and putdata below will fill
-// the remaining ones.
+/**
+ * creates the base matrix for given version. it returns two matrices, one of
+ * them is the actual one and the another represents the "reserved" portion
+ * (e.g. finder and timing patterns) of the matrix.
+ *
+ * some entries in the matrix may be undefined, rather than 0 or 1. this is
+ * intentional (no initialization needed!), and putdata below will fill
+ * the remaining ones.
+ */
 var makebasematrix = function(ver) {
 	var v = VERSIONS[ver], n = getsizebyver(ver);
 	var matrix = [], reserved = [];
@@ -459,9 +487,11 @@ var makebasematrix = function(ver) {
 	return {matrix: matrix, reserved: reserved};
 };
 
-// fills the data portion (i.e. unmarked in reserved) of the matrix with given
-// code words. the size of code words should be no more than available bits,
-// and remaining bits are padded to 0 (cf. JIS X 0510:2004 sec 8.7.3).
+/**
+ * fills the data portion (i.e. unmarked in reserved) of the matrix with given
+ * code words. the size of code words should be no more than available bits,
+ * and remaining bits are padded to 0 (cf. JIS X 0510:2004 sec 8.7.3).
+ */
 var putdata = function(matrix, reserved, buf) {
 	var n = matrix.length;
 	var k = 0, dir = -1;
@@ -484,8 +514,10 @@ var putdata = function(matrix, reserved, buf) {
 	return matrix;
 };
 
-// XOR-masks the data portion of the matrix. repeating the call with the same
-// arguments will revert the prior call (convenient in the matrix evaluation).
+/**
+ * XOR-masks the data portion of the matrix. repeating the call with the same
+ * arguments will revert the prior call (convenient in the matrix evaluation).
+ */
 var maskdata = function(matrix, reserved, mask) {
 	var maskf = MASKFUNCS[mask];
 	var n = matrix.length;
@@ -497,7 +529,7 @@ var maskdata = function(matrix, reserved, mask) {
 	return matrix;
 }
 
-// puts the format information.
+/** puts the format information. */
 var putformatinfo = function(matrix, reserved, ecclevel, mask) {
 	var n = matrix.length;
 	var code = augumentbch((ecclevel << 3) | mask, 5, 0x537, 10) ^ 0x5412;
@@ -511,16 +543,18 @@ var putformatinfo = function(matrix, reserved, ecclevel, mask) {
 	return matrix;
 };
 
-// evaluates the resulting matrix and returns the score (lower is better).
-// (cf. JIS X 0510:2004 sec 8.8.2)
-//
-// the evaluation procedure tries to avoid the problematic patterns naturally
-// occuring from the original matrix. for example, it penaltizes the patterns
-// which just look like the finder pattern which will confuse the decoder.
-// we choose the mask which results in the lowest score among 8 possible ones.
-//
-// note: zxing seems to use the same procedure and in many cases its choice
-// agrees to ours, but sometimes it does not. practically it doesn't matter.
+/**
+ * evaluates the resulting matrix and returns the score (lower is better).
+ * (cf. JIS X 0510:2004 sec 8.8.2)
+ *
+ * the evaluation procedure tries to avoid the problematic patterns naturally
+ * occuring from the original matrix. for example, it penaltizes the patterns
+ * which just look like the finder pattern which will confuse the decoder.
+ * we choose the mask which results in the lowest score among 8 possible ones.
+ *
+ * note: zxing seems to use the same procedure and in many cases its choice
+ * agrees to ours, but sometimes it does not. practically it doesn't matter.
+ */
 var evaluatematrix = function(matrix) {
 	// N1+(k-5) points for each consecutive row of k same-colored modules,
 	// where k >= 5. no overlapping row counts.
@@ -597,8 +631,10 @@ var evaluatematrix = function(matrix) {
 	return score;
 };
 
-// returns the fully encoded QR code matrix which contains given data.
-// it also chooses the best mask automatically when mask is -1.
+/**
+ * returns the fully encoded QR code matrix which contains given data.
+ * it also chooses the best mask automatically when mask is -1.
+ */
 var generate = function(data, ver, mode, ecclevel, mask) {
 	var v = VERSIONS[ver];
 	var buf = encode(ver, mode, data, ndatabits(ver, ecclevel) >> 3);
@@ -632,23 +668,26 @@ var generate = function(data, ver, mode, ecclevel, mask) {
 	return matrix;
 };
 
-// the public interface is trivial; the options available are as follows:
-//
-// - version: an integer in [1,40]. when omitted (or -1) the smallest possible
-//   version is chosen.
-// - mode: one of 'numeric', 'alphanumeric', 'octet'. when omitted the smallest
-//   possible mode is chosen.
-// - ecclevel: one of 'L', 'M', 'Q', 'H'. defaults to 'L'.
-// - mask: an integer in [0,7]. when omitted (or -1) the best mask is chosen.
-//
-// for generate{HTML,PNG}:
-//
-// - modulesize: a number. this is a size of each modules in pixels, and
-//   defaults to 5px.
-// - margin: a number. this is a size of margin in *modules*, and defaults to
-//   4 (white modules). the specficiation mandates the margin no less than 4
-//   modules, so it is better not to alter this value unless you know what
-//   you're doing.
+/**
+ * QR code generator.
+ * The options available are as follows:
+ *
+ * - version: an integer in [1,40]. when omitted (or -1) the smallest possible
+ *   version is chosen.
+ * - mode: one of 'numeric', 'alphanumeric', 'octet'. when omitted the smallest
+ *   possible mode is chosen.
+ * - ecclevel: one of 'L', 'M', 'Q', 'H'. defaults to 'L'.
+ * - mask: an integer in [0,7]. when omitted (or -1) the best mask is chosen.
+ *
+ * for generate{HTML,PNG}:
+ *
+ * - modulesize: a number. this is a size of each modules in pixels, and
+ *   defaults to 5px.
+ * - margin: a number. this is a size of margin in *modules*, and defaults to
+ *   4 (white modules). the specficiation mandates the margin no less than 4
+ *   modules, so it is better not to alter this value unless you know what
+ *   you're doing.
+ */
 class QRCode {
 	static generate(data, options = {}) {
 		var MODES = {'numeric': MODE_NUMERIC, 'alphanumeric': MODE_ALPHANUMERIC,
