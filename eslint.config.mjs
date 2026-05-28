@@ -95,7 +95,11 @@ export default [
 				ignoreRegExpLiterals: true, // Ignore regex
 				ignoreTrailingComments: false, // Enforce trailing comment length
 				ignoreComments: false // Enforce all comment lines
-			}]
+			}],
+
+			// The library uses improper spacing but for stylistic purposes.
+			'@stylistic/comma-spacing': 'off',
+			'@stylistic/array-bracket-spacing': 'off'
 		}
 	},
 
