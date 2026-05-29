@@ -27,6 +27,8 @@
     "dist/"
   ],
   "scripts": {
+    "build:esbuild": "npx esbuild qr.js --bundle --format=iife --platform=browser --minify --outfile=dist/qr.min.js",
+    "build": "npm run-script build:esbuild && npx tsc",
     "test": "node --test"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
     "@eslint/js": "^9.39.4",
     "@stylistic/eslint-plugin": "^5.10.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-plugin-jsdoc": "^62.9.0",
     "eslint-plugin-unicorn": "^64.0.0",

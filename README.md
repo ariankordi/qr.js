@@ -20,7 +20,7 @@ npm install https://github.com/ariankordi/qr.js#v0.4.0
 
 1. Without ES modules.
 ```html
-<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@v0.4.0/qr.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@v0.4.0/dist/qr.min.js"></script>
 <script>
   console.debug(QrCode);
 </script>
