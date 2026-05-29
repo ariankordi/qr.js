@@ -18,6 +18,8 @@
     // Additional rigidity.
     "exactOptionalPropertyTypes": true,
     //"noUncheckedIndexedAccess": true,
+    // Can help with Closure Compiler.
+    "noPropertyAccessFromIndexSignature": true,
 
     "skipLibCheck": true,
     "declaration": true, // Generate only declarations.

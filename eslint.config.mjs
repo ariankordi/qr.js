@@ -153,6 +153,14 @@ export default [
 			}
 		},
 		rules: {
+			// Not all parameters need descriptions.
+			'jsdoc/require-param-description': 'off',
+			'jsdoc/require-returns-description': 'off',
+			// Define global types used.
+			'jsdoc/no-undefined-types': ['warn', {
+				// TypeScript-specific "ArrayLike".
+				'definedTypes': ['ArrayLike']
+			}],
 			// Lots of structs don't need detailed descriptions.
 			'jsdoc/require-property-description': 'off',
 

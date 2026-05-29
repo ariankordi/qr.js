@@ -26,56 +26,65 @@
 
 /**
  * per-version information (cf. JIS X 0510:2004 pp. 30--36, 71)
- *
+ * the number in this table (in particular, [0]) does not exactly match with
+ * the numbers in the specification. see {@link augmentEccCode} for the reason.
+ * @param {number} v - input version id
+ * @returns {Array<Array<number>>} version information
  * [0]: the degree of generator polynomial by ECC levels
  * [1]: # of code blocks by ECC levels
  * [2]: left-top positions of alignment patterns
- *
- * the number in this table (in particular, [0]) does not exactly match with
- * the numbers in the specification. see augmentEccCode below for the reason.
+ * @throws {Error} throws if version `v` is unknown
  */
-const VERSIONS = [
-	null,
-	[[10, 7,17,13], [ 1, 1, 1, 1], []],
-	[[16,10,28,22], [ 1, 1, 1, 1], [4,16]],
-	[[26,15,22,18], [ 1, 1, 2, 2], [4,20]],
-	[[18,20,16,26], [ 2, 1, 4, 2], [4,24]],
-	[[24,26,22,18], [ 2, 1, 4, 4], [4,28]],
-	[[16,18,28,24], [ 4, 2, 4, 4], [4,32]],
-	[[18,20,26,18], [ 4, 2, 5, 6], [4,20,36]],
-	[[22,24,26,22], [ 4, 2, 6, 6], [4,22,40]],
-	[[22,30,24,20], [ 5, 2, 8, 8], [4,24,44]],
-	[[26,18,28,24], [ 5, 4, 8, 8], [4,26,48]],
-	[[30,20,24,28], [ 5, 4,11, 8], [4,28,52]],
-	[[22,24,28,26], [ 8, 4,11,10], [4,30,56]],
-	[[22,26,22,24], [ 9, 4,16,12], [4,32,60]],
-	[[24,30,24,20], [ 9, 4,16,16], [4,24,44,64]],
-	[[24,22,24,30], [10, 6,18,12], [4,24,46,68]],
-	[[28,24,30,24], [10, 6,16,17], [4,24,48,72]],
-	[[28,28,28,28], [11, 6,19,16], [4,28,52,76]],
-	[[26,30,28,28], [13, 6,21,18], [4,28,54,80]],
-	[[26,28,26,26], [14, 7,25,21], [4,28,56,84]],
-	[[26,28,28,30], [16, 8,25,20], [4,32,60,88]],
-	[[26,28,30,28], [17, 8,25,23], [4,26,48,70,92]],
-	[[28,28,24,30], [17, 9,34,23], [4,24,48,72,96]],
-	[[28,30,30,30], [18, 9,30,25], [4,28,52,76,100]],
-	[[28,30,30,30], [20,10,32,27], [4,26,52,78,104]],
-	[[28,26,30,30], [21,12,35,29], [4,30,56,82,108]],
-	[[28,28,30,28], [23,12,37,34], [4,28,56,84,112]],
-	[[28,30,30,30], [25,12,40,34], [4,32,60,88,116]],
-	[[28,30,30,30], [26,13,42,35], [4,24,48,72,96,120]],
-	[[28,30,30,30], [28,14,45,38], [4,28,52,76,100,124]],
-	[[28,30,30,30], [29,15,48,40], [4,24,50,76,102,128]],
-	[[28,30,30,30], [31,16,51,43], [4,28,54,80,106,132]],
-	[[28,30,30,30], [33,17,54,45], [4,32,58,84,110,136]],
-	[[28,30,30,30], [35,18,57,48], [4,28,56,84,112,140]],
-	[[28,30,30,30], [37,19,60,51], [4,32,60,88,116,144]],
-	[[28,30,30,30], [38,19,63,53], [4,28,52,76,100,124,148]],
-	[[28,30,30,30], [40,20,66,56], [4,22,48,74,100,126,152]],
-	[[28,30,30,30], [43,21,70,59], [4,26,52,78,104,130,156]],
-	[[28,30,30,30], [45,22,74,62], [4,30,56,82,108,134,160]],
-	[[28,30,30,30], [47,24,77,65], [4,24,52,80,108,136,164]],
-	[[28,30,30,30], [49,25,81,68], [4,28,56,84,112,140,168]]];
+function getVersion(v) {
+	const VERSIONS = [
+		null,
+		[[10, 7, 17, 13], [1, 1, 1, 1], []],
+		[[16, 10, 28, 22], [1, 1, 1, 1], [4, 16]],
+		[[26, 15, 22, 18], [1, 1, 2, 2], [4, 20]],
+		[[18, 20, 16, 26], [2, 1, 4, 2], [4, 24]],
+		[[24, 26, 22, 18], [2, 1, 4, 4], [4, 28]],
+		[[16, 18, 28, 24], [4, 2, 4, 4], [4, 32]],
+		[[18, 20, 26, 18], [4, 2, 5, 6], [4, 20, 36]],
+		[[22, 24, 26, 22], [4, 2, 6, 6], [4, 22, 40]],
+		[[22, 30, 24, 20], [5, 2, 8, 8], [4, 24, 44]],
+		[[26, 18, 28, 24], [5, 4, 8, 8], [4, 26, 48]],
+		[[30, 20, 24, 28], [5, 4, 11, 8], [4, 28, 52]],
+		[[22, 24, 28, 26], [8, 4, 11, 10], [4, 30, 56]],
+		[[22, 26, 22, 24], [9, 4, 16, 12], [4, 32, 60]],
+		[[24, 30, 24, 20], [9, 4, 16, 16], [4, 24, 44, 64]],
+		[[24, 22, 24, 30], [10, 6, 18, 12], [4, 24, 46, 68]],
+		[[28, 24, 30, 24], [10, 6, 16, 17], [4, 24, 48, 72]],
+		[[28, 28, 28, 28], [11, 6, 19, 16], [4, 28, 52, 76]],
+		[[26, 30, 28, 28], [13, 6, 21, 18], [4, 28, 54, 80]],
+		[[26, 28, 26, 26], [14, 7, 25, 21], [4, 28, 56, 84]],
+		[[26, 28, 28, 30], [16, 8, 25, 20], [4, 32, 60, 88]],
+		[[26, 28, 30, 28], [17, 8, 25, 23], [4, 26, 48, 70, 92]],
+		[[28, 28, 24, 30], [17, 9, 34, 23], [4, 24, 48, 72, 96]],
+		[[28, 30, 30, 30], [18, 9, 30, 25], [4, 28, 52, 76, 100]],
+		[[28, 30, 30, 30], [20, 10, 32, 27], [4, 26, 52, 78, 104]],
+		[[28, 26, 30, 30], [21, 12, 35, 29], [4, 30, 56, 82, 108]],
+		[[28, 28, 30, 28], [23, 12, 37, 34], [4, 28, 56, 84, 112]],
+		[[28, 30, 30, 30], [25, 12, 40, 34], [4, 32, 60, 88, 116]],
+		[[28, 30, 30, 30], [26, 13, 42, 35], [4, 24, 48, 72, 96, 120]],
+		[[28, 30, 30, 30], [28, 14, 45, 38], [4, 28, 52, 76, 100, 124]],
+		[[28, 30, 30, 30], [29, 15, 48, 40], [4, 24, 50, 76, 102, 128]],
+		[[28, 30, 30, 30], [31, 16, 51, 43], [4, 28, 54, 80, 106, 132]],
+		[[28, 30, 30, 30], [33, 17, 54, 45], [4, 32, 58, 84, 110, 136]],
+		[[28, 30, 30, 30], [35, 18, 57, 48], [4, 28, 56, 84, 112, 140]],
+		[[28, 30, 30, 30], [37, 19, 60, 51], [4, 32, 60, 88, 116, 144]],
+		[[28, 30, 30, 30], [38, 19, 63, 53], [4, 28, 52, 76, 100, 124, 148]],
+		[[28, 30, 30, 30], [40, 20, 66, 56], [4, 22, 48, 74, 100, 126, 152]],
+		[[28, 30, 30, 30], [43, 21, 70, 59], [4, 26, 52, 78, 104, 130, 156]],
+		[[28, 30, 30, 30], [45, 22, 74, 62], [4, 30, 56, 82, 108, 134, 160]],
+		[[28, 30, 30, 30], [47, 24, 77, 65], [4, 24, 52, 80, 108, 136, 164]],
+		[[28, 30, 30, 30], [49, 25, 81, 68], [4, 28, 56, 84, 112, 140, 168]]];
+
+	const version = VERSIONS[v];
+	if (version == null) {
+		throw new Error('unknown version');
+	}
+	return version;
+}
 
 /**
  * mode constants (cf. Table 2 in JIS X 0510:2004 p. 16)
@@ -108,7 +117,7 @@ const EccLevel = {
 /**
  * GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
  * invariant: GF256_MAP[GF256_INVERT_MAP[i]] == i for all i in [1,256)
- * @type {number[]}
+ * @type {Array<number>}
  */
 const GF256_MAP = [];
 const GF256_INVERT_MAP = [-1];
@@ -126,7 +135,7 @@ for (let i = 0, v = 1; i < 255; ++i) {
  * ..., (x-\alpha^(K-1)). by convention, we omit the K-th coefficient (always 1)
  * from the result; also other coefficients are written in terms of the exponent
  * to \alpha to avoid the redundant calculation. (see also {@link calculateEccCode})
- * @type {number[][]}
+ * @type {Array<Array<number>>}
  */
 const GF256_GENERATED_POLY = [[]];
 for (let i = 0; i < 30; ++i) {
@@ -143,18 +152,18 @@ for (let i = 0; i < 30; ++i) {
 /**
  * alphanumeric character mapping
  * (cf. Table 5 in JIS X 0510:2004 p. 19)
- * @type {Record<string, number>}
+ * @type {Object<string, number>}
  */
 const ALPHANUMERIC_MAP = Array.from('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:')
 	.reduce((map, ch, i) => {
 		map[ch] = i;
 		return map;
-	}, /** @type {Record<string, number>} */ ({}));
+	}, /** @type {Object<string, number>} */ ({}));
 
 /**
  * mask functions in terms of row # and column #
  * (cf. Table 20 in JIS X 0510:2004 p. 42)
- * @type {((i: number, j: number) => boolean)[]}
+ * @type {Array<function(number, number): boolean>}
  */
 const MASKS = [
 	(i, j) => (i + j) % 2 == 0,
@@ -166,22 +175,13 @@ const MASKS = [
 	(i, j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
 	(i, j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
 
-/**
- * returns true when the version information has to be embeded.
- * @returns {boolean}
- */
+/** @returns {boolean} whether the version information has to be embedded. */
 const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
 
-/**
- * returns the size of entire QR code for given version.
- * @returns {number}
- */
+/** @returns {number} size of the entire QR code for given version. */
 const getByteSizeForVersion = (/** @type {number} */ ver) => 4 * ver + 17;
 
-/**
- * returns the number of bits available for code words in this version.
- * @returns {number}
- */
+/** @returns {number} the number of bits available for code words in this version. */
 const numFullBits = function (/** @type {number} */ ver) {
 	/*
 	 * |<--------------- n --------------->|
@@ -216,8 +216,7 @@ const numFullBits = function (/** @type {number} */ ver) {
 	 *   if any, but 10m-20 (= 2(m-2)x5) of them overlaps with
 	 *   timing patterns.
 	 */
-	const v = /** @type {number[][]} */ (VERSIONS[ver]);
-	console.assert(Array.isArray(v), 'unknown version');
+	const v = getVersion(ver);
 	let numBits = 16 * ver * ver + 128 * ver + 64; // finder, timing and format info.
 	if (needsVersionInfo(ver)) {
 		numBits -= 36;
@@ -229,22 +228,21 @@ const numFullBits = function (/** @type {number} */ ver) {
 };
 
 /**
- * returns the number of bits available for data portions (i.e. excludes ECC
+ * gets the number of bits available for data portions (i.e. excludes ECC
  * bits but includes mode and length bits) in this version and ECC level.
- * @returns {number}
+ * @returns {number} number of bits
  */
 const numDataBits = function (/** @type {number} */ ver, /** @type {EccLevel} */ ecclevel) {
 	let num = numFullBits(ver) & ~7; // no sub-octet code words
-	const v = /** @type {number[][]} */ (VERSIONS[ver]);
-	console.assert(Array.isArray(v), 'unknown version');
+	const v = getVersion(ver);
 	num -= 8 * v[0][ecclevel] * v[1][ecclevel]; // ecc bits
 	return num;
 };
 
 /**
- * returns the number of bits required for the length of data.
+ * gets the number of bits required for the length of data.
  * (cf. Table 3 in JIS X 0510:2004 p. 16)
- * @returns {number}
+ * @returns {number} number of bits
  */
 const numDataLengthBits = function (/** @type {number} */ ver, /** @type {Mode} */ mode) {
 	switch (mode) {
@@ -257,11 +255,9 @@ const numDataLengthBits = function (/** @type {number} */ ver, /** @type {Mode} 
 	}
 };
 
-/**
- * returns the maximum length of data possible in given configuration.
- * @returns {number}
- */
-const getMaxDataLength = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel) {
+/** @returns {number} the maximum length of data possible in given configuration. */
+const getMaxDataLength = function (/** @type {number} */ ver,
+	/** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel) {
 	const bits = numDataBits(ver, ecclevel) - 4 -
 		numDataLengthBits(ver, mode); // 4 for mode bits
 	switch (mode) {
@@ -284,7 +280,7 @@ const getMaxDataLength = function (/** @type {number} */ ver, /** @type {Mode} *
  * returns null.
  *
  * this function does not check the length of data; it is a duty of
- * encode function below (as it depends on the version and ECC level too).
+ * {@link encode} (as it depends on the version and ECC level too).
  * @returns {InputData|null} the converted data, or null when invalid.
  */
 const validateData = function (/** @type {Mode} */ mode, /** @type {InputData} */ data) {
@@ -322,7 +318,7 @@ const validateData = function (/** @type {Mode} */ mode, /** @type {InputData} *
  * returns the code words (sans ECC bits) for given data and configurations.
  * requires data to be preprocessed by validateData. no length check is
  * performed, and everything has to be checked before calling this function.
- * @returns {number[]}
+ * @returns {Array<number>}
  */
 const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode,
 	/** @type {InputData} */ data, /** @type {number} */ maxbuflen) {
@@ -370,7 +366,7 @@ const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode,
 		}
 
 		case Mode.ALPHANUMERIC: {
-			// validateData guarantees an uppercased string for this mode.
+			// validateData guarantees an uppercase string for this mode.
 			const text = /** @type {string} */ (data);
 			// `i` is declared outside the loop because the trailing odd
 			// character is packed after it using the final value of `i`.
@@ -420,12 +416,12 @@ const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode,
  *
  * this is quite similar to CRC calculation as both Reed-Solomon and CRC use
  * the certain kind of cyclic codes, which is effectively the division of
- * zero-augumented polynomial by the generator polynomial. the only difference
+ * zero-augmented polynomial by the generator polynomial. the only difference
  * is that Reed-Solomon uses GF(2^8), instead of CRC's GF(2), and Reed-Solomon
  * uses the different generator polynomial than CRC's.
- * @returns {number[]}
+ * @returns {Array<number>}
  */
-const calculateEccCode = function (/** @type {number[]} */ poly, /** @type {number[]} */ genPoly) {
+const calculateEccCode = function (/** @type {Array<number>} */ poly, /** @type {Array<number>} */ genPoly) {
 	const modulus = poly.slice(0);
 	const polyLength = poly.length;
 	const polyGenLength = genPoly.length;
@@ -451,9 +447,10 @@ const calculateEccCode = function (/** @type {number[]} */ poly, /** @type {numb
  * the code is simplified using the fact that the size of each code & ECC
  * blocks is almost same; for example, when we have 4 blocks and 46 data words
  * the number of code words in those blocks are 11, 11, 12, 12 respectively.
- * @returns {number[]}
+ * @returns {Array<number>}
  */
-const augmentEccCode = function (/** @type {number[]} */ poly, /** @type {number} */ numBlocks, /** @type {number[]} */ genPoly) {
+const augmentEccCode = function (/** @type {Array<number>} */ poly,
+	/** @type {number} */ numBlocks, /** @type {Array<number>} */ genPoly) {
 	const subSizes = [];
 	const subSize = Math.trunc(poly.length / numBlocks);
 	let currentSubSize = 0;
@@ -517,23 +514,22 @@ const augmentBchCode = function (/** @type {number} */ poly, /** @type {number} 
  * (e.g. finder and timing patterns) of the matrix.
  *
  * some entries in the matrix may be undefined, rather than 0 or 1. this is
- * intentional (no initialization needed!), and putData below will fill
+ * intentional (no initialization needed!), and {@link putData} will fill
  * the remaining ones.
- * @returns {{matrix: number[][], reserved: number[][]}}
+ * @returns {{matrix: Array<Array<number>>, reserved: Array<Array<number>>}}
  */
 const makeBaseMatrix = function (/** @type {number} */ ver) {
-	const v = /** @type {number[][]} */ (VERSIONS[ver]);
-	console.assert(Array.isArray(v), 'unknown version');
+	const v = getVersion(ver);
 	const n = getByteSizeForVersion(ver);
-	/** @type {number[][]} */ const matrix = [];
-	/** @type {number[][]} */ const reserved = [];
+	/** @type {Array<Array<number>>} */ const matrix = [];
+	/** @type {Array<Array<number>>} */ const reserved = [];
 	for (let i = 0; i < n; ++i) {
 		matrix.push([]);
 		reserved.push([]);
 	}
 
 	const matrixCopy = function (/** @type {number} */ y, /** @type {number} */ x,
-		/** @type {number} */ h, /** @type {number} */ w, /** @type {number[]} */ bits) {
+		/** @type {number} */ h, /** @type {number} */ w, /** @type {Array<number>} */ bits) {
 		for (let i = 0; i < h; ++i) {
 			for (let j = 0; j < w; ++j) {
 				matrix[y + i][x + j] = (bits[i] >> j) & 1;
@@ -584,9 +580,10 @@ const makeBaseMatrix = function (/** @type {number} */ ver) {
  * fills the data portion (i.e. unmarked in reserved) of the matrix with given
  * code words. the size of code words should be no more than available bits,
  * and remaining bits are padded to 0 (cf. JIS X 0510:2004 sec 8.7.3).
- * @returns {number[][]} the same matrix, for convenience.
+ * @returns {Array<Array<number>>} the same matrix, for convenience.
  */
-const putData = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ reserved, /** @type {number[]} */ buf) {
+const putData = function (/** @type {Array<Array<number>>} */ matrix,
+	/** @type {Array<Array<number>>} */ reserved, /** @type {Array<number>} */ buf) {
 	const n = matrix.length;
 	let k = 0;
 	let dir = -1;
@@ -614,9 +611,10 @@ const putData = function (/** @type {number[][]} */ matrix, /** @type {number[][
 /**
  * XOR-masks the data portion of the matrix. repeating the call with the same
  * arguments will revert the prior call (convenient in the matrix evaluation).
- * @returns {number[][]} the same matrix, for convenience.
+ * @returns {Array<Array<number>>} the same matrix, for convenience.
  */
-const maskData = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ reserved, /** @type {number} */ mask) {
+const maskData = function (/** @type {Array<Array<number>>} */ matrix,
+	/** @type {Array<Array<number>>} */ reserved, /** @type {number} */ mask) {
 	const maskMethod = MASKS[mask];
 	const n = matrix.length;
 	for (let i = 0; i < n; ++i) {
@@ -631,17 +629,19 @@ const maskData = function (/** @type {number[][]} */ matrix, /** @type {number[]
 
 /**
  * puts the format information.
- * @returns {number[][]} the same matrix, for convenience.
+ * @returns {Array<Array<number>>} the same matrix, for convenience.
  */
-const putFormatInfo = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ _reserved, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
+const putFormatInfo = function (/** @type {Array<Array<number>>} */ matrix,
+	/** @type {Array<Array<number>>} */ _reserved,
+	/** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
 	const n = matrix.length;
 	const code = augmentBchCode((ecclevel << 3) | mask, 5, 0x537, 10) ^ 0x5412;
 	for (let i = 0; i < 15; ++i) {
 		const r = [0,1,2,3,4,5,7,8,n - 7,n - 6,n - 5,n - 4,n - 3,n - 2,n - 1][i];
 		const c = [n - 1,n - 2,n - 3,n - 4,n - 5,n - 6,n - 7,n - 8,7,5,4,3,2,1,0][i];
 		matrix[r][8] = matrix[8][c] = (code >> i) & 1;
-		// we don't have to mark those bits reserved; always done
-		// in makeBaseMatrix above.
+		// we don't have to mark those bits reserved;
+		// always done in makeBaseMatrix above.
 	}
 	return matrix;
 };
@@ -659,7 +659,7 @@ const putFormatInfo = function (/** @type {number[][]} */ matrix, /** @type {num
  * agrees to ours, but sometimes it does not. practically it doesn't matter.
  * @returns {number} returns the matrix score
  */
-const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
+const evaluateMatrix = function (/** @type {Array<Array<number>>} */ matrix) {
 	// N1+(k-5) points for each consecutive row of k same-colored modules,
 	// where k >= 5. no overlapping row counts.
 	const PENALTY_CONSECUTIVE = 3;
@@ -674,7 +674,7 @@ const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
 	// i.e. k=1 for 55~60% and 40~45%, k=2 for 60~65% and 35~40%, etc.
 	const PENALTY_DENSITY = 10;
 
-	const evaluateGroup = function (/** @type {number[]} */ groups) { // assumes [W,B,W,B,W,...,B,W]
+	const evaluateGroup = function (/** @type {Array<number>} */ groups) { // assumes [W,B,W,B,W,...,B,W]
 		let score = 0;
 		for (let i = 0; i < groups.length; ++i) {
 			if (groups[i] >= 5) {
@@ -747,20 +747,18 @@ const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
 };
 
 /**
- * returns the fully encoded QR code matrix which contains given data.
- * it also chooses the best mask automatically when mask is -1.
- * @returns {number[][]} returns the QR code matrix
+ * encodes the QR code matrix with the given data.
+ * this function chooses the best mask automatically when `mask` is -1.
+ * @returns {Array<Array<number>>} returns the fully encoded QR code matrix
  */
 const generate = function (/** @type {InputData} */ data, /** @type {number} */ ver,
 	/** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
-	const v = /** @type {number[][]} */ (VERSIONS[ver]);
-	console.assert(Array.isArray(v), 'unknown version');
+	const v = getVersion(ver);
 	let buf = encode(ver, mode, data, numDataBits(ver, ecclevel) >> 3);
 	buf = augmentEccCode(buf, v[1][ecclevel], GF256_GENERATED_POLY[v[0][ecclevel]]);
 
 	const result = makeBaseMatrix(ver);
-	const matrix = result.matrix;
-	const reserved = result.reserved;
+	const { matrix, reserved } = result;
 	putData(matrix, reserved, buf);
 
 	if (mask < 0) {
@@ -906,7 +904,7 @@ const QRCode = {
 				}
 			}
 			if (ver > 40) {
-				throw new Error('too large data');
+				throw new Error(`data is too large for version ${ver}`);
 			}
 		} else if (ver < 1 || ver > 40) {
 			throw new Error('invalid version');
