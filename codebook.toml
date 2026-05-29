@@ -1,11 +1,13 @@
 words = [
-    "Kang",
-    "Seonghoon",
     "Bch",
     "CRC's",
     "JIS",
+    "Kang",
+    "Seonghoon",
     "ecclevel",
+    "importmap",
     "modulesize",
     "qrcode",
+    "qrjs",
     "zxing",
 ]

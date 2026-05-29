@@ -823,6 +823,30 @@ const QRCode = {
 	 * @property {number} [ratio] - Ratio for non-px sizes; defaults to 1.
 	 */
 
+	/**
+	 * @typedef {Object} RenderOptions
+	 * @property {number} moduleSize - Size of each module, in pixels.
+	 * @property {number} margin - Margin around the code, in modules.
+	 * @property {string} unit - Unit for non-px sizes (e.g., 'mm', 'cm').
+	 * @property {number} ratio - Ratio for non-px sizes.
+	 */
+
+	/**
+	 * resolves the drawing-related options to concrete values, filling in the
+	 * library defaults for anything the caller omitted. shared by every
+	 * rendering method so the defaults stay in one place.
+	 * @returns {RenderOptions}
+	 * @private
+	 */
+	_getRenderOptions(/** @type {QRCodeOptions} */ options = {}) {
+		return {
+			moduleSize: Math.max(options.modulesize || 5, 0.5),
+			margin: Math.max(options.margin == null ? 4 : options.margin, 0),
+			unit: options.unit || 'px',
+			ratio: options.ratio || 1
+		};
+	},
+
 	generate(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const MODES = {
 			'numeric': Mode.NUMERIC,
@@ -876,7 +900,8 @@ const QRCode = {
 
 		if (ver < 0) {
 			for (ver = 1; ver <= 40; ++ver) {
-				if (data.length <= getMaxDataLength(ver, mode, ecclevel)) {
+				const len = getMaxDataLength(ver, mode, ecclevel);
+				if (data.length <= len) {
 					break;
 				}
 			}
@@ -896,10 +921,7 @@ const QRCode = {
 
 	generateHTML(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const matrix = QRCode.generate(data, options);
-		const moduleSize = Math.max(options.modulesize || 5, 0.5);
-		const unit = options.unit || 'px';
-		const ratio = options.ratio || 1;
-		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
+		const { moduleSize, margin, unit, ratio } = QRCode._getRenderOptions(options);
 
 		const e = document.createElement('div');
 		const n = matrix.length;
@@ -925,8 +947,7 @@ const QRCode = {
 	generateSVG(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const matrix = QRCode.generate(data, options);
 		const n = matrix.length;
-		const moduleSize = Math.max(options.modulesize || 5, 0.5);
-		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
+		const { moduleSize, margin } = QRCode._getRenderOptions(options);
 		const size = moduleSize * (n + 2 * margin);
 
 		const common = ' class= "fg"' + ' width="' + moduleSize + '" height="' + moduleSize + '"/>';
@@ -960,18 +981,23 @@ const QRCode = {
 		return e;
 	},
 
-	generateCanvas(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
+	/**
+	 * draws the QR code for given data into a caller-provided canvas. the
+	 * canvas is resized to fit the code (including its margin) and painted in
+	 * place; nothing else on the canvas is preserved.
+	 * @returns {HTMLCanvasElement} the same canvas, for convenience.
+	 */
+	drawIntoCanvas(/** @type {HTMLCanvasElement} */ canvas,
+		/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const matrix = QRCode.generate(data, options);
-		const moduleSize = Math.max(options.modulesize || 5, 0.5);
-		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
+		const { moduleSize, margin } = QRCode._getRenderOptions(options);
 		const n = matrix.length;
 		const size = moduleSize * (n + 2 * margin);
 
-		const canvas = document.createElement('canvas');
 		canvas.width = canvas.height = size;
 		const context = canvas.getContext('2d');
 		if (!context) {
-			throw new Error('canvas support is needed for PNG output');
+			throw new Error('canvas support not found (also required for PNG support)');
 		}
 
 		context.fillStyle = '#fff';
@@ -990,13 +1016,20 @@ const QRCode = {
 		return canvas;
 	},
 
-	generateImage: (/** @type {InputData} */ data,
+	/**
+	 * generates a new canvas element containing the QR code for given data.
+	 * @returns {HTMLCanvasElement}
+	 */
+	generateCanvas: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) =>
+		QRCode.drawIntoCanvas(document.createElement('canvas'), data, options),
+
+	generateDataURL: (/** @type {InputData} */ data,
 		/** @type {QRCodeOptions} */ options = {},
 		/** @type {Parameters<typeof HTMLCanvasElement.prototype.toDataURL>[0]} */ type) =>
 		QRCode.generateCanvas(data, options).toDataURL(type),
 
 	generatePNG: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) =>
-		QRCode.generateImage(data, options, 'image/png')
+		QRCode.generateDataURL(data, options, 'image/png')
 };
 
 export default QRCode;
