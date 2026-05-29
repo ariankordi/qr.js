@@ -99,7 +99,10 @@ export default [
 
 			// The library uses improper spacing but for stylistic purposes.
 			'@stylistic/comma-spacing': 'off',
-			'@stylistic/array-bracket-spacing': 'off'
+			'@stylistic/array-bracket-spacing': 'off',
+			// It's possible that quoted properties do have a purpose,
+			// as they are needed for Google Closure Compiler.
+			'@stylistic/quote-props': 'off'
 		}
 	},
 
