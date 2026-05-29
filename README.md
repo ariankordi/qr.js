@@ -11,18 +11,18 @@ This fork modernizes the library a little bit.
 
 ## Usage
 
-* Install via NPM from git:
+* Install via NPM from GitHub:
 ```
-npm install https://github.com/ariankordi/qr.js#v0.4.0
+npm install https://github.com/ariankordi/qr.js#v0.4.1
 ```
 
 ### Including on a web page
 
 1. Without ES modules.
 ```html
-<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@v0.4.0/dist/qr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@0.4.1/dist/qr.min.js"></script>
 <script>
-  console.debug(QrCode);
+  console.debug(QRCode);
 </script>
 ```
 
@@ -31,12 +31,12 @@ npm install https://github.com/ariankordi/qr.js#v0.4.0
 <script type="importmap">
 {
   "imports": {
-    "qrjs": "https://esm.sh/gh/ariankordi/qr.js@v0.4.0"
+    "qrjs": "https://esm.sh/gh/ariankordi/qr.js@v0.4.1"
   }
 }
 </script>
 <script type="module">
-  import QrCode from 'qrjs';
-  console.debug(QrCode);
+  import QRCode from 'qrjs';
+  console.debug(QRCode);
 </script>
 ```
