@@ -1,7 +1,7 @@
 {
   "name": "qrjs",
   "main": "qr.js",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "QR code generator in JavaScript",
   "homepage": "https://github.com/ariankordi/qr.js",
@@ -15,11 +15,16 @@
     {
       "name": "Eduard Castellano",
       "email": "educastellano08@gmail.com"
+    },
+    {
+      "name": "Arian Kordi",
+      "email": "ariankordi@ariankordi.net"
     }
   ],
   "license": "CC0-1.0",
   "files": [
-    "qr.js"
+    "qr.js",
+    "dist/"
   ],
   "scripts": {
     "test": "node --test"
