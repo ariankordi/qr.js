@@ -101,7 +101,7 @@ const ECCLEVEL_H = 2;
  */
 const GF256_MAP = [];
 const GF256_INVMAP = [-1];
-for (var i = 0, v = 1; i < 255; ++i) {
+for (let i = 0, v = 1; i < 255; ++i) {
 	GF256_MAP.push(v);
 	GF256_INVMAP[v] = i;
 	v = (v * 2) ^ (v >= 128 ? 0x11d : 0);
@@ -117,7 +117,7 @@ for (var i = 0, v = 1; i < 255; ++i) {
  * to \alpha to avoid the redundant calculation. (see also calculateecc below.)
  */
 const GF256_GENPOLY = [[]];
-for (var i = 0; i < 30; ++i) {
+for (let i = 0; i < 30; ++i) {
 	const prevpoly = GF256_GENPOLY[i];
 	const poly = [];
 	for (let j = 0; j <= i; ++j) {
@@ -130,7 +130,7 @@ for (var i = 0; i < 30; ++i) {
 
 /** alphanumeric character mapping (cf. Table 5 in JIS X 0510:2004 p. 19) */
 const ALPHANUMERIC_MAP = {};
-for (var i = 0; i < 45; ++i) {
+for (let i = 0; i < 45; ++i) {
 	ALPHANUMERIC_MAP['0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'.charAt(i)] = i;
 }
 
@@ -310,15 +310,22 @@ const encode = function(ver, mode, data, maxbuflen) {
 	pack(datalen, nlenbits);
 
 	switch (mode) {
-		case MODE_NUMERIC:
-			for (var i = 2; i < datalen; i += 3) {
+		case MODE_NUMERIC: {
+			// `i` is declared outside the loop because the trailing 1-2 digits
+			// are packed after it using the final value of `i`.
+			let i = 2;
+			for (; i < datalen; i += 3) {
 				pack(parseInt(data.substring(i - 2,i + 1), 10), 10);
 			}
 			pack(parseInt(data.substring(i - 2), 10), [0,4,7][datalen % 3]);
 			break;
+		}
 
-		case MODE_ALPHANUMERIC:
-			for (var i = 1; i < datalen; i += 2) {
+		case MODE_ALPHANUMERIC: {
+			// `i` is declared outside the loop because the trailing odd
+			// character is packed after it using the final value of `i`.
+			let i = 1;
+			for (; i < datalen; i += 2) {
 				pack(ALPHANUMERIC_MAP[data.charAt(i - 1)] * 45 +
 					ALPHANUMERIC_MAP[data.charAt(i)], 11);
 			}
@@ -326,9 +333,10 @@ const encode = function(ver, mode, data, maxbuflen) {
 				pack(ALPHANUMERIC_MAP[data.charAt(i - 1)], 6);
 			}
 			break;
+		}
 
 		case MODE_OCTET:
-			for (var i = 0; i < datalen; ++i) {
+			for (let i = 0; i < datalen; ++i) {
 				pack(data[i], 8);
 			}
 			break;
@@ -360,8 +368,8 @@ const encode = function(ver, mode, data, maxbuflen) {
 const calculateecc = function(poly, genpoly) {
 	const modulus = poly.slice(0);
 	const polylen = poly.length; const genpolylen = genpoly.length;
-	for (var i = 0; i < genpolylen; ++i) {modulus.push(0);}
-	for (var i = 0; i < polylen; ) {
+	for (let i = 0; i < genpolylen; ++i) {modulus.push(0);}
+	for (let i = 0; i < polylen; ) {
 		const quotient = GF256_INVMAP[modulus[i++]];
 		if (quotient >= 0) {
 			for (let j = 0; j < genpolylen; ++j) {
@@ -385,33 +393,33 @@ const augumenteccs = function(poly, nblocks, genpoly) {
 	const subsizes = [];
 	const subsize = (poly.length / nblocks) | 0; let subsize0 = 0;
 	const pivot = nblocks - poly.length % nblocks;
-	for (var i = 0; i < pivot; ++i) {
+	for (let i = 0; i < pivot; ++i) {
 		subsizes.push(subsize0);
 		subsize0 += subsize;
 	}
-	for (var i = pivot; i < nblocks; ++i) {
+	for (let i = pivot; i < nblocks; ++i) {
 		subsizes.push(subsize0);
 		subsize0 += subsize + 1;
 	}
 	subsizes.push(subsize0);
 
 	const eccs = [];
-	for (var i = 0; i < nblocks; ++i) {
+	for (let i = 0; i < nblocks; ++i) {
 		eccs.push(calculateecc(poly.slice(subsizes[i], subsizes[i + 1]), genpoly));
 	}
 
 	const result = [];
 	const nitemsperblock = (poly.length / nblocks) | 0;
-	for (var i = 0; i < nitemsperblock; ++i) {
-		for (var j = 0; j < nblocks; ++j) {
+	for (let i = 0; i < nitemsperblock; ++i) {
+		for (let j = 0; j < nblocks; ++j) {
 			result.push(poly[subsizes[j] + i]);
 		}
 	}
-	for (var j = pivot; j < nblocks; ++j) {
+	for (let j = pivot; j < nblocks; ++j) {
 		result.push(poly[subsizes[j + 1] - 1]);
 	}
-	for (var i = 0; i < genpoly.length; ++i) {
-		for (var j = 0; j < nblocks; ++j) {
+	for (let i = 0; i < genpoly.length; ++i) {
+		for (let j = 0; j < nblocks; ++j) {
 			result.push(eccs[j][i]);
 		}
 	}
@@ -447,7 +455,7 @@ const augumentbch = function(poly, p, genpoly, q) {
 const makebasematrix = function(ver) {
 	const v = VERSIONS[ver]; const n = getByteSizeForVersion(ver);
 	const matrix = []; const reserved = [];
-	for (var i = 0; i < n; ++i) {
+	for (let i = 0; i < n; ++i) {
 		matrix.push([]);
 		reserved.push([]);
 	}
@@ -468,16 +476,16 @@ const makebasematrix = function(ver) {
 	blit(0, n - 8, 9, 8, [0xfe, 0x82, 0xba, 0xba, 0xba, 0x82, 0xfe, 0x00, 0x00]);
 
 	// the rest of timing patterns
-	for (var i = 9; i < n - 8; ++i) {
+	for (let i = 9; i < n - 8; ++i) {
 		matrix[6][i] = matrix[i][6] = ~i & 1;
 		reserved[6][i] = reserved[i][6] = 1;
 	}
 
 	// alignment patterns
 	const aligns = v[2]; const m = aligns.length;
-	for (var i = 0; i < m; ++i) {
+	for (let i = 0; i < m; ++i) {
 		const minj = (i == 0 || i == m - 1 ? 1 : 0); const maxj = (i == 0 ? m - 1 : m);
-		for (var j = minj; j < maxj; ++j) {
+		for (let j = minj; j < maxj; ++j) {
 			blit(aligns[i], aligns[j], 5, 5, [0x1f, 0x11, 0x15, 0x11, 0x1f]);
 		}
 	}
@@ -486,8 +494,8 @@ const makebasematrix = function(ver) {
 	if (needsVersionInfo(ver)) {
 		const code = augumentbch(ver, 6, 0x1f25, 12);
 		let k = 0;
-		for (var i = 0; i < 6; ++i) {
-			for (var j = 0; j < 3; ++j) {
+		for (let i = 0; i < 6; ++i) {
+			for (let j = 0; j < 3; ++j) {
 				matrix[i][(n - 11) + j] = matrix[(n - 11) + j][i] = (code >> k++) & 1;
 				reserved[i][(n - 11) + j] = reserved[(n - 11) + j][i] = 1;
 			}
@@ -585,10 +593,10 @@ const evaluatematrix = function(matrix) {
 
 	const evaluategroup = function(groups) { // assumes [W,B,W,B,W,...,B,W]
 		let score = 0;
-		for (var i = 0; i < groups.length; ++i) {
+		for (let i = 0; i < groups.length; ++i) {
 			if (groups[i] >= 5) {score += PENALTY_CONSECUTIVE + (groups[i] - 5);}
 		}
-		for (var i = 5; i < groups.length; i += 2) {
+		for (let i = 5; i < groups.length; i += 2) {
 			let p = groups[i];
 			if (groups[i - 1] == p && groups[i - 2] == 3 * p && groups[i - 3] == p &&
 				groups[i - 4] == p && (groups[i - 5] >= 4 * p || groups[i + 1] >= 4 * p)) {
@@ -603,12 +611,12 @@ const evaluatematrix = function(matrix) {
 	let score = 0; let nblacks = 0;
 	for (let i = 0; i < n; ++i) {
 		const row = matrix[i];
-		var groups;
+		let groups;
 
 		// evaluate the current row
 		groups = [0]; // the first empty group of white
-		for (var j = 0; j < n; ) {
-			var k;
+		for (let j = 0; j < n; ) {
+			let k;
 			for (k = 0; j < n && row[j]; ++k) {++j;}
 			groups.push(k);
 			for (k = 0; j < n && !row[j]; ++k) {++j;}
@@ -618,8 +626,8 @@ const evaluatematrix = function(matrix) {
 
 		// evaluate the current column
 		groups = [0];
-		for (var j = 0; j < n; ) {
-			var k;
+		for (let j = 0; j < n; ) {
+			let k;
 			for (k = 0; j < n && matrix[j][i]; ++k) {++j;}
 			groups.push(k);
 			for (k = 0; j < n && !matrix[j][i]; ++k) {++j;}
@@ -630,7 +638,7 @@ const evaluatematrix = function(matrix) {
 		// check the 2x2 box and calculate the density
 		const nextrow = matrix[i + 1] || [];
 		nblacks += row[0];
-		for (var j = 1; j < n; ++j) {
+		for (let j = 1; j < n; ++j) {
 			const p = row[j];
 			nblacks += p;
 			// at least comparison with next row should be strict...
