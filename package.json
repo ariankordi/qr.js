@@ -1,7 +1,7 @@
 {
   "name": "qrjs",
   "main": "qr.js",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "QR code generator in JavaScript",
   "homepage": "https://github.com/ariankordi/qr.js",
@@ -29,7 +29,8 @@
   "scripts": {
     "build:esbuild": "npx esbuild qr.js --bundle --format=iife --platform=browser --minify --outfile=dist/qr.min.js",
     "build": "npm run-script build:esbuild && npx tsc",
-    "test": "node --test"
+    "test": "node --test",
+    "coverage": "npx c8 --reporter=html node --test"
   },
   "devDependencies": {
     "@cdklabs/eslint-plugin": "^2.0.4",

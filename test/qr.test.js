@@ -93,3 +93,20 @@ test('all four ECC levels generate valid matrices', () => {
 		assertValidMatrix(QRCode.generate('TEST', { mode: 'alphanumeric', ecclevel }));
 	}
 });
+
+test('version 2 produces a 25x25 matrix and exercises alignment pattern placement', () => {
+	// Version 2 is the smallest version that includes alignment patterns,
+	// covering the alignment-pattern matrix-fill branch (lines 553-562).
+	const matrix = QRCode.generate('HELLO WORLD', { version: 2, mode: 'alphanumeric' });
+	assert.equal(matrix.length, sizeForVersion(2));
+	assertValidMatrix(matrix);
+});
+
+test('version 7 exercises alignment patterns and version information blocks', () => {
+	// Version 7 is the smallest version that embeds version information
+	// (needsVersionInfo returns true), covering lines 221-222 and 565-574.
+	// A long numeric string is used to fill the larger data capacity.
+	const matrix = QRCode.generate('01234567890123456789', { version: 7, mode: 'numeric' });
+	assert.equal(matrix.length, sizeForVersion(7));
+	assertValidMatrix(matrix);
+});
