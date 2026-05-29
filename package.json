@@ -21,6 +21,9 @@
   "files": [
     "qr.js"
   ],
+  "scripts": {
+    "test": "node --test"
+  },
   "devDependencies": {
     "@cdklabs/eslint-plugin": "^2.0.4",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
