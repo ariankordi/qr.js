@@ -166,13 +166,22 @@ const MASKS = [
 	(i, j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
 	(i, j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
 
-/** returns true when the version information has to be embeded. */
+/**
+ * returns true when the version information has to be embeded.
+ * @returns {boolean}
+ */
 const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
 
-/** returns the size of entire QR code for given version. */
+/**
+ * returns the size of entire QR code for given version.
+ * @returns {number}
+ */
 const getByteSizeForVersion = (/** @type {number} */ ver) => 4 * ver + 17;
 
-/** returns the number of bits available for code words in this version. */
+/**
+ * returns the number of bits available for code words in this version.
+ * @returns {number}
+ */
 const numFullBits = function (/** @type {number} */ ver) {
 	/*
 	 * |<--------------- n --------------->|
@@ -209,19 +218,20 @@ const numFullBits = function (/** @type {number} */ ver) {
 	 */
 	const v = /** @type {number[][]} */ (VERSIONS[ver]);
 	console.assert(Array.isArray(v), 'unknown version');
-	let nbits = 16 * ver * ver + 128 * ver + 64; // finder, timing and format info.
+	let numBits = 16 * ver * ver + 128 * ver + 64; // finder, timing and format info.
 	if (needsVersionInfo(ver)) {
-		nbits -= 36;
+		numBits -= 36;
 	} // version information
 	if (v[2].length) { // alignment patterns
-		nbits -= 25 * v[2].length * v[2].length - 10 * v[2].length - 55;
+		numBits -= 25 * v[2].length * v[2].length - 10 * v[2].length - 55;
 	}
-	return nbits;
+	return numBits;
 };
 
 /**
  * returns the number of bits available for data portions (i.e. excludes ECC
  * bits but includes mode and length bits) in this version and ECC level.
+ * @returns {number}
  */
 const numDataBits = function (/** @type {number} */ ver, /** @type {EccLevel} */ ecclevel) {
 	let num = numFullBits(ver) & ~7; // no sub-octet code words
@@ -234,6 +244,7 @@ const numDataBits = function (/** @type {number} */ ver, /** @type {EccLevel} */
 /**
  * returns the number of bits required for the length of data.
  * (cf. Table 3 in JIS X 0510:2004 p. 16)
+ * @returns {number}
  */
 const numDataLengthBits = function (/** @type {number} */ ver, /** @type {Mode} */ mode) {
 	switch (mode) {
@@ -246,7 +257,10 @@ const numDataLengthBits = function (/** @type {number} */ ver, /** @type {Mode} 
 	}
 };
 
-/** returns the maximum length of data possible in given configuration. */
+/**
+ * returns the maximum length of data possible in given configuration.
+ * @returns {number}
+ */
 const getMaxDataLength = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel) {
 	const bits = numDataBits(ver, ecclevel) - 4 -
 		numDataLengthBits(ver, mode); // 4 for mode bits
@@ -271,8 +285,9 @@ const getMaxDataLength = function (/** @type {number} */ ver, /** @type {Mode} *
  *
  * this function does not check the length of data; it is a duty of
  * encode function below (as it depends on the version and ECC level too).
+ * @returns {InputData|null} the converted data, or null when invalid.
  */
-const validateData = function (/** @type {Mode} */ mode, /** @type {string|ArrayLike<number>} */ data) {
+const validateData = function (/** @type {Mode} */ mode, /** @type {InputData} */ data) {
 	switch (mode) {
 		case Mode.NUMERIC:
 			if (!NUMERIC_REGEXP.test(String(data))) {
@@ -295,6 +310,11 @@ const validateData = function (/** @type {Mode} */ mode, /** @type {string|Array
 				return new TextEncoder().encode(data);
 			}
 			return data;
+
+		default:
+			// unreachable for the modes accepted by the public API; the
+			// explicit branch keeps every code path returning a value.
+			return null;
 	}
 };
 
@@ -302,15 +322,17 @@ const validateData = function (/** @type {Mode} */ mode, /** @type {string|Array
  * returns the code words (sans ECC bits) for given data and configurations.
  * requires data to be preprocessed by validateData. no length check is
  * performed, and everything has to be checked before calling this function.
+ * @returns {number[]}
  */
-const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {InputData} */ data, /** @type {number} */ maxbuflen) {
+const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode,
+	/** @type {InputData} */ data, /** @type {number} */ maxbuflen) {
 	const buf = [];
 	let bits = 0;
 	let remaining = 8;
 	const dataSize = data.length;
 
-	// this function is intentionally no-op when n=0.
 	const pack = (/** @type {number} */ x, /** @type {number} */ n) => {
+		// this function is intentionally no-op when n=0.
 		if (n >= remaining) {
 			buf.push(bits | (x >> (n -= remaining)));
 			while (n >= 8) {
@@ -333,35 +355,44 @@ const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /*
 
 	switch (mode) {
 		case Mode.NUMERIC: {
+			// validateData guarantees a string for the numeric mode.
+			const text = /** @type {string} */ (data);
 			// `i` is declared outside the loop because the trailing 1-2 digits
 			// are packed after it using the final value of `i`.
 			let i = 2;
 			for (; i < dataSize; i += 3) {
-				pack(Number.parseInt(data.substring(i - 2, i + 1), 10), 10);
+				// eslint-disable-next-line unicorn/prefer-string-slice -- TODO: determine if we can replace safely
+				pack(Number.parseInt(text.substring(i - 2, i + 1), 10), 10);
 			}
-			pack(Number.parseInt(data.substring(i - 2), 10), [0,4,7][dataSize % 3]);
+			// eslint-disable-next-line unicorn/prefer-string-slice -- TODO: determine if we can replace safely
+			pack(Number.parseInt(text.substring(i - 2), 10), [0,4,7][dataSize % 3]);
 			break;
 		}
 
 		case Mode.ALPHANUMERIC: {
+			// validateData guarantees an uppercased string for this mode.
+			const text = /** @type {string} */ (data);
 			// `i` is declared outside the loop because the trailing odd
 			// character is packed after it using the final value of `i`.
 			let i = 1;
 			for (; i < dataSize; i += 2) {
-				pack(ALPHANUMERIC_MAP[data.charAt(i - 1)] * 45 +
-					ALPHANUMERIC_MAP[data.charAt(i)], 11);
+				pack(ALPHANUMERIC_MAP[text.charAt(i - 1)] * 45 +
+					ALPHANUMERIC_MAP[text.charAt(i)], 11);
 			}
 			if (dataSize % 2 == 1) {
-				pack(ALPHANUMERIC_MAP[data.charAt(i - 1)], 6);
+				pack(ALPHANUMERIC_MAP[text.charAt(i - 1)], 6);
 			}
 			break;
 		}
 
-		case Mode.OCTET:
+		case Mode.OCTET: {
+			// validateData guarantees a byte sequence for the octet mode.
+			const bytes = /** @type {ArrayLike<number>} */ (data);
 			for (let i = 0; i < dataSize; ++i) {
-				pack(data[i], 8);
+				pack(bytes[i], 8);
 			}
 			break;
+		}
 	}
 
 	// final bits. it is possible that adding terminator causes the buffer
@@ -392,8 +423,9 @@ const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /*
  * zero-augumented polynomial by the generator polynomial. the only difference
  * is that Reed-Solomon uses GF(2^8), instead of CRC's GF(2), and Reed-Solomon
  * uses the different generator polynomial than CRC's.
+ * @returns {number[]}
  */
-const calculateEccCode = function (poly, genPoly) {
+const calculateEccCode = function (/** @type {number[]} */ poly, /** @type {number[]} */ genPoly) {
 	const modulus = poly.slice(0);
 	const polyLength = poly.length;
 	const polyGenLength = genPoly.length;
@@ -419,8 +451,9 @@ const calculateEccCode = function (poly, genPoly) {
  * the code is simplified using the fact that the size of each code & ECC
  * blocks is almost same; for example, when we have 4 blocks and 46 data words
  * the number of code words in those blocks are 11, 11, 12, 12 respectively.
+ * @returns {number[]}
  */
-const augmentEccCode = function (poly, numBlocks, genPoly) {
+const augmentEccCode = function (/** @type {number[]} */ poly, /** @type {number} */ numBlocks, /** @type {number[]} */ genPoly) {
 	const subSizes = [];
 	const subSize = Math.trunc(poly.length / numBlocks);
 	let currentSubSize = 0;
@@ -466,8 +499,9 @@ const augmentEccCode = function (poly, numBlocks, genPoly) {
  * actual polynomials used for this procedure are as follows:
  * - p=10, q=5, genPoly=x^10+x^8+x^5+x^4+x^2+x+1 (JIS X 0510:2004 Appendix C)
  * - p=18, q=6, genPoly=x^12+x^11+x^10+x^9+x^8+x^5+x^2+1 (ibid. Appendix D)
+ * @returns {number}
  */
-const augmentBchCode = function (poly, p, genPoly, /** @type {number} */ q) {
+const augmentBchCode = function (/** @type {number} */ poly, /** @type {number} */ p, /** @type {number} */ genPoly, /** @type {number} */ q) {
 	let modulus = poly << q;
 	for (let i = p - 1; i >= 0; --i) {
 		if ((modulus >> (q + i)) & 1) {
@@ -485,6 +519,7 @@ const augmentBchCode = function (poly, p, genPoly, /** @type {number} */ q) {
  * some entries in the matrix may be undefined, rather than 0 or 1. this is
  * intentional (no initialization needed!), and putData below will fill
  * the remaining ones.
+ * @returns {{matrix: number[][], reserved: number[][]}}
  */
 const makeBaseMatrix = function (/** @type {number} */ ver) {
 	const v = /** @type {number[][]} */ (VERSIONS[ver]);
@@ -549,6 +584,7 @@ const makeBaseMatrix = function (/** @type {number} */ ver) {
  * fills the data portion (i.e. unmarked in reserved) of the matrix with given
  * code words. the size of code words should be no more than available bits,
  * and remaining bits are padded to 0 (cf. JIS X 0510:2004 sec 8.7.3).
+ * @returns {number[][]} the same matrix, for convenience.
  */
 const putData = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ reserved, /** @type {number[]} */ buf) {
 	const n = matrix.length;
@@ -578,8 +614,9 @@ const putData = function (/** @type {number[][]} */ matrix, /** @type {number[][
 /**
  * XOR-masks the data portion of the matrix. repeating the call with the same
  * arguments will revert the prior call (convenient in the matrix evaluation).
+ * @returns {number[][]} the same matrix, for convenience.
  */
-const maskData = function (matrix, reserved, mask) {
+const maskData = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ reserved, /** @type {number} */ mask) {
 	const maskMethod = MASKS[mask];
 	const n = matrix.length;
 	for (let i = 0; i < n; ++i) {
@@ -590,10 +627,13 @@ const maskData = function (matrix, reserved, mask) {
 		}
 	}
 	return matrix;
-}
+};
 
-/** puts the format information. */
-const putFormatInfo = function (matrix, reserved, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
+/**
+ * puts the format information.
+ * @returns {number[][]} the same matrix, for convenience.
+ */
+const putFormatInfo = function (/** @type {number[][]} */ matrix, /** @type {number[][]} */ _reserved, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
 	const n = matrix.length;
 	const code = augmentBchCode((ecclevel << 3) | mask, 5, 0x537, 10) ^ 0x5412;
 	for (let i = 0; i < 15; ++i) {
@@ -617,6 +657,7 @@ const putFormatInfo = function (matrix, reserved, /** @type {EccLevel} */ ecclev
  *
  * note: zxing seems to use the same procedure and in many cases its choice
  * agrees to ours, but sometimes it does not. practically it doesn't matter.
+ * @returns {number} returns the matrix score
  */
 const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
 	// N1+(k-5) points for each consecutive row of k same-colored modules,
@@ -633,7 +674,7 @@ const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
 	// i.e. k=1 for 55~60% and 40~45%, k=2 for 60~65% and 35~40%, etc.
 	const PENALTY_DENSITY = 10;
 
-	const evaluateGroup = function (groups) { // assumes [W,B,W,B,W,...,B,W]
+	const evaluateGroup = function (/** @type {number[]} */ groups) { // assumes [W,B,W,B,W,...,B,W]
 		let score = 0;
 		for (let i = 0; i < groups.length; ++i) {
 			if (groups[i] >= 5) {
@@ -708,8 +749,10 @@ const evaluateMatrix = function (/** @type {number[][]} */ matrix) {
 /**
  * returns the fully encoded QR code matrix which contains given data.
  * it also chooses the best mask automatically when mask is -1.
+ * @returns {number[][]} returns the QR code matrix
  */
-const generate = function (/** @type {InputData} */ data, /** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
+const generate = function (/** @type {InputData} */ data, /** @type {number} */ ver,
+	/** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
 	const v = /** @type {number[][]} */ (VERSIONS[ver]);
 	console.assert(Array.isArray(v), 'unknown version');
 	let buf = encode(ver, mode, data, numDataBits(ver, ecclevel) >> 3);
@@ -750,28 +793,29 @@ const generate = function (/** @type {InputData} */ data, /** @type {number} */ 
  * The options available are as follows:
  *
  * - version: an integer in [1,40]. when omitted (or -1) the smallest possible
- *   version is chosen.
+ * version is chosen.
  * - mode: one of 'numeric', 'alphanumeric', 'octet'. when omitted the smallest
- *   possible mode is chosen.
+ * possible mode is chosen.
  * - ecclevel: one of 'L', 'M', 'Q', 'H'. defaults to 'L'.
  * - mask: an integer in [0,7]. when omitted (or -1) the best mask is chosen.
  *
  * for generate{HTML,PNG}:
  *
  * - modulesize: a number. this is a size of each modules in pixels, and
- *   defaults to 5px.
+ * defaults to 5px.
  * - margin: a number. this is a size of margin in *modules*, and defaults to
- *   4 (white modules). the specification mandates the margin no less than 4
- *   modules, so it is better not to alter this value unless you know what
- *   you're doing.
+ * 4 (white modules). the specification mandates the margin no less than 4
+ * modules, so it is better not to alter this value unless you know what
+ * you're doing.
  */
 const QRCode = {
+	/** @typedef {'numeric'|'alphanumeric'|'octet'} ModeParam */
+	/** @typedef {'L'|'M'|'Q'|'H'} EccLevelParam */
 	/**
 	 * @typedef {Object} QRCodeOptions
 	 * @property {number} [version] - Version in [1,40]; defaults to auto-select.
-	 * @property {'numeric'|'alphanumeric'|'octet'} [mode] -
-	 * One of 'numeric', 'alphanumeric', 'octet'; defaults to auto-select.
-	 * @property {'L'|'M'|'Q'|'H'} [ecclevel] - One of 'L', 'M', 'Q', 'H'; defaults to 'L'.
+	 * @property {ModeParam} [mode] - One of 'numeric', 'alphanumeric', 'octet'; defaults to auto-select.
+	 * @property {EccLevelParam} [ecclevel] - One of 'L', 'M', 'Q', 'H'; defaults to 'L'.
 	 * @property {number} [mask] - Mask in [0,7]; defaults to auto-select.
 	 * @property {number} [modulesize] - Size of each module in pixels; defaults to 5px.
 	 * @property {number} [margin] - Margin in modules; defaults to 4.
@@ -793,8 +837,11 @@ const QRCode = {
 		};
 
 		let ver = options.version || -1;
-		const ecclevel = ECC_LEVELS[(options.ecclevel || 'L').toUpperCase()];
-		let mode = options.mode ? MODES[options.mode.toLowerCase()] : -1;
+		const ecclevel = ECC_LEVELS[
+			/** @type {EccLevelParam} */ ((options.ecclevel || 'L').toUpperCase())];
+		let mode = options.mode
+			? MODES[/** @type {ModeParam} */ (options.mode.toLowerCase())]
+			: -1;
 		const mask = 'mask' in options ? options.mask : -1;
 
 		if (mode < 0) {
