@@ -75,23 +75,33 @@ const VERSIONS = [
 	[[28,30,30,30], [47,24,77,65], [4,24,52,80,108,136,164]],
 	[[28,30,30,30], [49,25,81,68], [4,28,56,84,112,140,168]]];
 
-// mode constants (cf. Table 2 in JIS X 0510:2004 p. 16)
-const MODE_TERMINATOR = 0;
-const MODE_NUMERIC = 1;
-const MODE_ALPHANUMERIC = 2;
-const MODE_OCTET = 4;
-const MODE_KANJI = 8;
+/**
+ * mode constants (cf. Table 2 in JIS X 0510:2004 p. 16)
+ * @enum {number}
+ */
+const Mode = {
+	TERMINATOR: 0,
+	NUMERIC: 1,
+	ALPHANUMERIC: 2,
+	OCTET: 4,
+	KANJI: 8,
+};
 
 // validation regexps
 const NUMERIC_REGEXP = /^\d*$/;
 const ALPHANUMERIC_REGEXP = /^[A-Za-z0-9 $%*+\-./:]*$/;
 const ALPHANUMERIC_OUT_REGEXP = /^[A-Z0-9 $%*+\-./:]*$/;
 
-// ECC levels (cf. Table 22 in JIS X 0510:2004 p. 45)
-const ECCLEVEL_L = 1;
-const ECCLEVEL_M = 0;
-const ECCLEVEL_Q = 3;
-const ECCLEVEL_H = 2;
+/**
+ * ECC levels (cf. Table 22 in JIS X 0510:2004 p. 45)
+ * @enum {number}
+ */
+const EccLevel = {
+	L: 1,
+	M: 0,
+	Q: 3,
+	H: 2,
+};
 
 /**
  * GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
@@ -133,10 +143,11 @@ for (let i = 0; i < 30; ++i) {
  * (cf. Table 5 in JIS X 0510:2004 p. 19)
  * @type {Record<string, number>}
  */
-const ALPHANUMERIC_MAP = {};
-for (let i = 0; i < 45; ++i) {
-	ALPHANUMERIC_MAP['0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'.charAt(i)] = i;
-}
+const ALPHANUMERIC_MAP = Array.from('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:')
+	.reduce((map, ch, i) => {
+		map[ch] = i;
+		return map;
+	}, /** @type {Record<string, number>} */ ({}));
 
 /**
  * mask functions in terms of row # and column #
@@ -210,7 +221,7 @@ const nfullbits = function (/** @type {number} */ ver) {
  * returns the number of bits available for data portions (i.e. excludes ECC
  * bits but includes mode and length bits) in this version and ECC level.
  */
-const ndatabits = function (ver, ecclevel) {
+const ndatabits = function (/** @type {number} */ ver, /** @type {EccLevel} */ ecclevel) {
 	let nbits = nfullbits(ver) & ~7; // no sub-octet code words
 	const v = /** @type {number[][]} */ (VERSIONS[ver]);
 	console.assert(Array.isArray(v), 'unknown version');
@@ -222,26 +233,26 @@ const ndatabits = function (ver, ecclevel) {
  * returns the number of bits required for the length of data.
  * (cf. Table 3 in JIS X 0510:2004 p. 16)
  */
-const ndatalenbits = function (ver, mode) {
+const ndatalenbits = function (/** @type {number} */ ver, /** @type {Mode} */ mode) {
 	switch (mode) {
-		case MODE_NUMERIC: return (ver < 10 ? 10 : ver < 27 ? 12 : 14);
-		case MODE_ALPHANUMERIC: return (ver < 10 ? 9 : ver < 27 ? 11 : 13);
-		case MODE_OCTET: return (ver < 10 ? 8 : 16);
-		case MODE_KANJI: return (ver < 10 ? 8 : ver < 27 ? 10 : 12);
+		case Mode.NUMERIC: return (ver < 10 ? 10 : ver < 27 ? 12 : 14);
+		case Mode.ALPHANUMERIC: return (ver < 10 ? 9 : ver < 27 ? 11 : 13);
+		case Mode.OCTET: return (ver < 10 ? 8 : 16);
+		case Mode.KANJI: return (ver < 10 ? 8 : ver < 27 ? 10 : 12);
 	}
 };
 
 /** returns the maximum length of data possible in given configuration. */
-const getmaxdatalen = function (ver, mode, ecclevel) {
+const getmaxdatalen = function (/** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel) {
 	const nbits = ndatabits(ver, ecclevel) - 4 - ndatalenbits(ver, mode); // 4 for mode bits
 	switch (mode) {
-		case MODE_NUMERIC:
+		case Mode.NUMERIC:
 			return (Math.trunc(nbits / 10)) * 3 + (nbits % 10 < 4 ? 0 : nbits % 10 < 7 ? 1 : 2);
-		case MODE_ALPHANUMERIC:
+		case Mode.ALPHANUMERIC:
 			return (Math.trunc(nbits / 11)) * 2 + (nbits % 11 < 6 ? 0 : 1);
-		case MODE_OCTET:
+		case Mode.OCTET:
 			return Math.trunc(nbits / 8);
-		case MODE_KANJI:
+		case Mode.KANJI:
 			return Math.trunc(nbits / 13);
 		default:
 			throw new Error('unknown mode');
@@ -256,45 +267,26 @@ const getmaxdatalen = function (ver, mode, ecclevel) {
  * this function does not check the length of data; it is a duty of
  * encode function below (as it depends on the version and ECC level too).
  */
-const validatedata = function (mode, data) {
+const validatedata = function (/** @type {Mode} */ mode, /** @type {string|ArrayLike<number>} */ data) {
 	switch (mode) {
-		case MODE_NUMERIC:
+		case Mode.NUMERIC:
 			if (!NUMERIC_REGEXP.test(data)) {
 				return null;
 			}
 			return data;
 
-		case MODE_ALPHANUMERIC:
+		case Mode.ALPHANUMERIC:
 			if (!ALPHANUMERIC_REGEXP.test(data)) {
 				return null;
 			}
 			return data.toUpperCase();
 
-		case MODE_OCTET:
-			if (typeof data === 'string') { // encode as utf-8 string
-				const newdata = [];
-				for (let i = 0; i < data.length; ++i) {
-					const ch = data.charCodeAt(i);
-					if (ch < 0x80) {
-						newdata.push(ch);
-					} else if (ch < 0x800) {
-						newdata.push(0xc0 | (ch >> 6),
-							0x80 | (ch & 0x3f));
-					} else if (ch < 0x10000) {
-						newdata.push(0xe0 | (ch >> 12),
-							0x80 | ((ch >> 6) & 0x3f),
-							0x80 | (ch & 0x3f));
-					} else {
-						newdata.push(0xf0 | (ch >> 18),
-							0x80 | ((ch >> 12) & 0x3f),
-							0x80 | ((ch >> 6) & 0x3f),
-							0x80 | (ch & 0x3f));
-					}
-				}
-				return newdata;
-			} else {
-				return data;
+		case Mode.OCTET:
+			if (typeof data === 'string') {
+				// encode the string as a UTF-8 byte sequence.
+				return new TextEncoder().encode(data);
 			}
+			return data;
 	}
 };
 
@@ -303,7 +295,7 @@ const validatedata = function (mode, data) {
  * requires data to be preprocessed by validatedata. no length check is
  * performed, and everything has to be checked before calling this function.
  */
-const encode = function (ver, mode, data, maxbuflen) {
+const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode, data, /** @type {number} */ maxbuflen) {
 	const buf = [];
 	let bits = 0;
 	let remaining = 8;
@@ -332,7 +324,7 @@ const encode = function (ver, mode, data, maxbuflen) {
 	pack(datalen, nlenbits);
 
 	switch (mode) {
-		case MODE_NUMERIC: {
+		case Mode.NUMERIC: {
 			// `i` is declared outside the loop because the trailing 1-2 digits
 			// are packed after it using the final value of `i`.
 			let i = 2;
@@ -343,7 +335,7 @@ const encode = function (ver, mode, data, maxbuflen) {
 			break;
 		}
 
-		case MODE_ALPHANUMERIC: {
+		case Mode.ALPHANUMERIC: {
 			// `i` is declared outside the loop because the trailing odd
 			// character is packed after it using the final value of `i`.
 			let i = 1;
@@ -357,7 +349,7 @@ const encode = function (ver, mode, data, maxbuflen) {
 			break;
 		}
 
-		case MODE_OCTET:
+		case Mode.OCTET:
 			for (let i = 0; i < datalen; ++i) {
 				pack(data[i], 8);
 			}
@@ -368,7 +360,7 @@ const encode = function (ver, mode, data, maxbuflen) {
 	// to overflow, but then the buffer truncated to the maximum size will
 	// be valid as the truncated terminator mode bits and padding is
 	// identical in appearance (cf. JIS X 0510:2004 sec 8.4.8).
-	pack(MODE_TERMINATOR, 4);
+	pack(Mode.TERMINATOR, 4);
 	if (remaining < 8) {
 		buf.push(bits);
 	}
@@ -591,7 +583,7 @@ const maskdata = function (matrix, reserved, mask) {
 }
 
 /** puts the format information. */
-const putformatinfo = function (matrix, reserved, ecclevel, mask) {
+const putformatinfo = function (matrix, reserved, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
 	const n = matrix.length;
 	const code = augumentbch((ecclevel << 3) | mask, 5, 0x537, 10) ^ 0x5412;
 	for (let i = 0; i < 15; ++i) {
@@ -707,7 +699,7 @@ const evaluatematrix = function (matrix) {
  * returns the fully encoded QR code matrix which contains given data.
  * it also chooses the best mask automatically when mask is -1.
  */
-const generate = function (data, ver, mode, ecclevel, mask) {
+const generate = function (data, /** @type {number} */ ver, /** @type {Mode} */ mode, /** @type {EccLevel} */ ecclevel, /** @type {number} */ mask) {
 	const v = /** @type {number[][]} */ (VERSIONS[ver]);
 	console.assert(Array.isArray(v), 'unknown version');
 	let buf = encode(ver, mode, data, ndatabits(ver, ecclevel) >> 3);
@@ -780,15 +772,15 @@ const QRCode = {
 
 	generate(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const MODES = {
-			'numeric': MODE_NUMERIC,
-			'alphanumeric': MODE_ALPHANUMERIC,
-			'octet': MODE_OCTET
+			'numeric': Mode.NUMERIC,
+			'alphanumeric': Mode.ALPHANUMERIC,
+			'octet': Mode.OCTET
 		};
 		const ECCLEVELS = {
-			'L': ECCLEVEL_L,
-			'M': ECCLEVEL_M,
-			'Q': ECCLEVEL_Q,
-			'H': ECCLEVEL_H
+			'L': EccLevel.L,
+			'M': EccLevel.M,
+			'Q': EccLevel.Q,
+			'H': EccLevel.H
 		};
 
 		let ver = options.version || -1;
@@ -799,20 +791,20 @@ const QRCode = {
 		if (mode < 0) {
 			if (typeof data === 'string') {
 				if (NUMERIC_REGEXP.test(data)) {
-					mode = MODE_NUMERIC;
+					mode = Mode.NUMERIC;
 				} else if (ALPHANUMERIC_OUT_REGEXP.test(data)) {
 					// while encode supports case-insensitive
 					// encoding, we restrict the data to be
 					// uppercased when auto-selecting the mode.
-					mode = MODE_ALPHANUMERIC;
+					mode = Mode.ALPHANUMERIC;
 				} else {
-					mode = MODE_OCTET;
+					mode = Mode.OCTET;
 				}
 			} else {
-				mode = MODE_OCTET;
+				mode = Mode.OCTET;
 			}
-		} else if (!(mode == MODE_NUMERIC || mode == MODE_ALPHANUMERIC ||
-			mode == MODE_OCTET)) {
+		} else if (!(mode == Mode.NUMERIC || mode == Mode.ALPHANUMERIC ||
+			mode == Mode.OCTET)) {
 			throw new Error('invalid or unsupported mode');
 		}
 
