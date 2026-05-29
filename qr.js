@@ -1,11 +1,10 @@
 /**
  * @file qr.js -- QR code generator in Javascript (revision 2011-01-19)
- * @author Kang Seonghoon <public+qrjs@mearie.org>.
- *
- * @license
+ * @license CC0-1.0
  * This source code is in the public domain; if your jurisdiction does not
  * recognize the public domain the terms of Creative Commons CC0 license
  * apply. In the other words, you can always do what you want.
+ * @author Kang Seonghoon <public+qrjs@mearie.org>.
  */
 
 /* Quick overview: QR code composed of 2D array of modules (a rectangular
@@ -115,6 +114,7 @@ for (let i = 0, v = 1; i < 255; ++i) {
  * ..., (x-\alpha^(K-1)). by convention, we omit the K-th coefficient (always 1)
  * from the result; also other coefficients are written in terms of the exponent
  * to \alpha to avoid the redundant calculation. (see also calculateecc below.)
+ * @type {number[][]}
  */
 const GF256_GENPOLY = [[]];
 for (let i = 0; i < 30; ++i) {
@@ -128,7 +128,11 @@ for (let i = 0; i < 30; ++i) {
 	GF256_GENPOLY.push(poly);
 }
 
-/** alphanumeric character mapping (cf. Table 5 in JIS X 0510:2004 p. 19) */
+/**
+ * alphanumeric character mapping
+ * (cf. Table 5 in JIS X 0510:2004 p. 19)
+ * @type {Record<string, number>}
+ */
 const ALPHANUMERIC_MAP = {};
 for (let i = 0; i < 45; ++i) {
 	ALPHANUMERIC_MAP['0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'.charAt(i)] = i;
@@ -140,14 +144,14 @@ for (let i = 0; i < 45; ++i) {
  * @type {Array<(i: number, j: number) => boolean>}
  */
 const MASKFUNCS = [
-	(i,j) => (i + j) % 2 == 0,
-	(i,j) => i % 2 == 0,
-	(i,j) => j % 3 == 0,
-	(i,j) => (i + j) % 3 == 0,
-	(i,j) => ((Math.trunc(i / 2)) + (Math.trunc(j / 3))) % 2 == 0,
-	(i,j) => (i * j) % 2 + (i * j) % 3 == 0,
-	(i,j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
-	(i,j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
+	(i, j) => (i + j) % 2 == 0,
+	i => i % 2 == 0,
+	(_i, j) => j % 3 == 0,
+	(i, j) => (i + j) % 3 == 0,
+	(i, j) => ((Math.trunc(i / 2)) + (Math.trunc(j / 3))) % 2 == 0,
+	(i, j) => (i * j) % 2 + (i * j) % 3 == 0,
+	(i, j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
+	(i, j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
 
 /** returns true when the version information has to be embeded. */
 const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
@@ -156,7 +160,7 @@ const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
 const getByteSizeForVersion = (/** @type {number} */ ver) => 4 * ver + 17;
 
 /** returns the number of bits available for code words in this version. */
-const nfullbits = function(/** @type {number} */ ver) {
+const nfullbits = function (/** @type {number} */ ver) {
 	/*
 	 * |<--------------- n --------------->|
 	 * |        |<----- n-17 ---->|        |
@@ -190,9 +194,12 @@ const nfullbits = function(/** @type {number} */ ver) {
 	 *   if any, but 10m-20 (= 2(m-2)x5) of them overlaps with
 	 *   timing patterns.
 	 */
-	const v = VERSIONS[ver];
+	const v = /** @type {number[][]} */ (VERSIONS[ver]);
+	console.assert(Array.isArray(v), 'unknown version');
 	let nbits = 16 * ver * ver + 128 * ver + 64; // finder, timing and format info.
-	if (needsVersionInfo(ver)) {nbits -= 36;} // version information
+	if (needsVersionInfo(ver)) {
+		nbits -= 36;
+	} // version information
 	if (v[2].length) { // alignment patterns
 		nbits -= 25 * v[2].length * v[2].length - 10 * v[2].length - 55;
 	}
@@ -203,18 +210,19 @@ const nfullbits = function(/** @type {number} */ ver) {
  * returns the number of bits available for data portions (i.e. excludes ECC
  * bits but includes mode and length bits) in this version and ECC level.
  */
-const ndatabits = function(ver, ecclevel) {
+const ndatabits = function (ver, ecclevel) {
 	let nbits = nfullbits(ver) & ~7; // no sub-octet code words
-	const v = VERSIONS[ver];
+	const v = /** @type {number[][]} */ (VERSIONS[ver]);
+	console.assert(Array.isArray(v), 'unknown version');
 	nbits -= 8 * v[0][ecclevel] * v[1][ecclevel]; // ecc bits
 	return nbits;
-}
+};
 
 /**
  * returns the number of bits required for the length of data.
  * (cf. Table 3 in JIS X 0510:2004 p. 16)
  */
-const ndatalenbits = function(ver, mode) {
+const ndatalenbits = function (ver, mode) {
 	switch (mode) {
 		case MODE_NUMERIC: return (ver < 10 ? 10 : ver < 27 ? 12 : 14);
 		case MODE_ALPHANUMERIC: return (ver < 10 ? 9 : ver < 27 ? 11 : 13);
@@ -224,7 +232,7 @@ const ndatalenbits = function(ver, mode) {
 };
 
 /** returns the maximum length of data possible in given configuration. */
-const getmaxdatalen = function(ver, mode, ecclevel) {
+const getmaxdatalen = function (ver, mode, ecclevel) {
 	const nbits = ndatabits(ver, ecclevel) - 4 - ndatalenbits(ver, mode); // 4 for mode bits
 	switch (mode) {
 		case MODE_NUMERIC:
@@ -235,6 +243,8 @@ const getmaxdatalen = function(ver, mode, ecclevel) {
 			return Math.trunc(nbits / 8);
 		case MODE_KANJI:
 			return Math.trunc(nbits / 13);
+		default:
+			throw new Error('unknown mode');
 	}
 };
 
@@ -246,14 +256,18 @@ const getmaxdatalen = function(ver, mode, ecclevel) {
  * this function does not check the length of data; it is a duty of
  * encode function below (as it depends on the version and ECC level too).
  */
-const validatedata = function(mode, data) {
+const validatedata = function (mode, data) {
 	switch (mode) {
 		case MODE_NUMERIC:
-			if (!NUMERIC_REGEXP.test(data)) {return null;}
+			if (!NUMERIC_REGEXP.test(data)) {
+				return null;
+			}
 			return data;
 
 		case MODE_ALPHANUMERIC:
-			if (!ALPHANUMERIC_REGEXP.test(data)) {return null;}
+			if (!ALPHANUMERIC_REGEXP.test(data)) {
+				return null;
+			}
 			return data.toUpperCase();
 
 		case MODE_OCTET:
@@ -289,24 +303,32 @@ const validatedata = function(mode, data) {
  * requires data to be preprocessed by validatedata. no length check is
  * performed, and everything has to be checked before calling this function.
  */
-const encode = function(ver, mode, data, maxbuflen) {
+const encode = function (ver, mode, data, maxbuflen) {
 	const buf = [];
-	let bits = 0; let remaining = 8;
+	let bits = 0;
+	let remaining = 8;
 	const datalen = data.length;
 
 	// this function is intentionally no-op when n=0.
-	const pack = function(x, n) {
+	const pack = (/** @type {number} */ x, /** @type {number} */ n) => {
 		if (n >= remaining) {
 			buf.push(bits | (x >> (n -= remaining)));
-			while (n >= 8) {buf.push((x >> (n -= 8)) & 255);}
+			while (n >= 8) {
+				buf.push((x >> (n -= 8)) & 255);
+			}
 			bits = 0;
 			remaining = 8;
 		}
-		if (n > 0) {bits |= (x & ((1 << n) - 1)) << (remaining -= n);}
+		if (n > 0) {
+			bits |= (x & ((1 << n) - 1)) << (remaining -= n);
+		}
 	};
 
 	const nlenbits = ndatalenbits(ver, mode);
 	pack(mode, 4);
+	if (nlenbits === undefined) {
+		throw new Error('unknown version/mode combination');
+	}
 	pack(datalen, nlenbits);
 
 	switch (mode) {
@@ -347,12 +369,18 @@ const encode = function(ver, mode, data, maxbuflen) {
 	// be valid as the truncated terminator mode bits and padding is
 	// identical in appearance (cf. JIS X 0510:2004 sec 8.4.8).
 	pack(MODE_TERMINATOR, 4);
-	if (remaining < 8) {buf.push(bits);}
+	if (remaining < 8) {
+		buf.push(bits);
+	}
 
 	// the padding to fill up the remaining space. we should not add any
 	// words when the overflow already occurred.
-	while (buf.length + 1 < maxbuflen) {buf.push(0xec, 0x11);}
-	if (buf.length < maxbuflen) {buf.push(0xec);}
+	while (buf.length + 1 < maxbuflen) {
+		buf.push(0xec, 0x11);
+	}
+	if (buf.length < maxbuflen) {
+		buf.push(0xec);
+	}
 	return buf;
 };
 
@@ -365,11 +393,14 @@ const encode = function(ver, mode, data, maxbuflen) {
  * is that Reed-Solomon uses GF(2^8), instead of CRC's GF(2), and Reed-Solomon
  * uses the different generator polynomial than CRC's.
  */
-const calculateecc = function(poly, genpoly) {
+const calculateecc = function (poly, genpoly) {
 	const modulus = poly.slice(0);
-	const polylen = poly.length; const genpolylen = genpoly.length;
-	for (let i = 0; i < genpolylen; ++i) {modulus.push(0);}
-	for (let i = 0; i < polylen; ) {
+	const polylen = poly.length;
+	const genpolylen = genpoly.length;
+	for (let i = 0; i < genpolylen; ++i) {
+		modulus.push(0);
+	}
+	for (let i = 0; i < polylen;) {
 		const quotient = GF256_INVMAP[modulus[i++]];
 		if (quotient >= 0) {
 			for (let j = 0; j < genpolylen; ++j) {
@@ -389,9 +420,10 @@ const calculateecc = function(poly, genpoly) {
  * blocks is almost same; for example, when we have 4 blocks and 46 data words
  * the number of code words in those blocks are 11, 11, 12, 12 respectively.
  */
-const augumenteccs = function(poly, nblocks, genpoly) {
+const augumenteccs = function (poly, nblocks, genpoly) {
 	const subsizes = [];
-	const subsize = (poly.length / nblocks) | 0; let subsize0 = 0;
+	const subsize = Math.trunc(poly.length / nblocks);
+	let subsize0 = 0;
 	const pivot = nblocks - poly.length % nblocks;
 	for (let i = 0; i < pivot; ++i) {
 		subsizes.push(subsize0);
@@ -409,7 +441,7 @@ const augumenteccs = function(poly, nblocks, genpoly) {
 	}
 
 	const result = [];
-	const nitemsperblock = (poly.length / nblocks) | 0;
+	const nitemsperblock = Math.trunc(poly.length / nblocks);
 	for (let i = 0; i < nitemsperblock; ++i) {
 		for (let j = 0; j < nblocks; ++j) {
 			result.push(poly[subsizes[j] + i]);
@@ -435,10 +467,12 @@ const augumenteccs = function(poly, nblocks, genpoly) {
  * - p=10, q=5, genpoly=x^10+x^8+x^5+x^4+x^2+x+1 (JIS X 0510:2004 Appendix C)
  * - p=18, q=6, genpoly=x^12+x^11+x^10+x^9+x^8+x^5+x^2+1 (ibid. Appendix D)
  */
-const augumentbch = function(poly, p, genpoly, q) {
+const augumentbch = function (poly, p, genpoly, q) {
 	let modulus = poly << q;
 	for (let i = p - 1; i >= 0; --i) {
-		if ((modulus >> (q + i)) & 1) {modulus ^= genpoly << i;}
+		if ((modulus >> (q + i)) & 1) {
+			modulus ^= genpoly << i;
+		}
 	}
 	return (poly << q) | modulus;
 };
@@ -452,15 +486,19 @@ const augumentbch = function(poly, p, genpoly, q) {
  * intentional (no initialization needed!), and putdata below will fill
  * the remaining ones.
  */
-const makebasematrix = function(ver) {
-	const v = VERSIONS[ver]; const n = getByteSizeForVersion(ver);
-	const matrix = []; const reserved = [];
+const makebasematrix = function (ver) {
+	const v = /** @type {number[][]} */ (VERSIONS[ver]);
+	console.assert(Array.isArray(v), 'unknown version');
+	const n = getByteSizeForVersion(ver);
+	/** @type {Array<Array<number>>} */ const matrix = [];
+	/** @type {Array<Array<number>>} */ const reserved = [];
 	for (let i = 0; i < n; ++i) {
 		matrix.push([]);
 		reserved.push([]);
 	}
 
-	const blit = function(/** @type {number} */ y, /** @type {number} */ x, /** @type {number} */ h, /** @type {number} */ w, /** @type {number[]} */ bits) {
+	const blit = function (/** @type {number} */ y, /** @type {number} */ x,
+		/** @type {number} */ h, /** @type {number} */ w, /** @type {number[]} */ bits) {
 		for (let i = 0; i < h; ++i) {
 			for (let j = 0; j < w; ++j) {
 				matrix[y + i][x + j] = (bits[i] >> j) & 1;
@@ -482,9 +520,11 @@ const makebasematrix = function(ver) {
 	}
 
 	// alignment patterns
-	const aligns = v[2]; const m = aligns.length;
+	const aligns = v[2];
+	const m = aligns.length;
 	for (let i = 0; i < m; ++i) {
-		const minj = (i == 0 || i == m - 1 ? 1 : 0); const maxj = (i == 0 ? m - 1 : m);
+		const minj = (i == 0 || i == m - 1 ? 1 : 0);
+		const maxj = (i == 0 ? m - 1 : m);
 		for (let j = minj; j < maxj; ++j) {
 			blit(aligns[i], aligns[j], 5, 5, [0x1f, 0x11, 0x15, 0x11, 0x1f]);
 		}
@@ -510,7 +550,7 @@ const makebasematrix = function(ver) {
  * code words. the size of code words should be no more than available bits,
  * and remaining bits are padded to 0 (cf. JIS X 0510:2004 sec 8.7.3).
  */
-const putdata = function(matrix, reserved, buf) {
+const putdata = function (matrix, reserved, buf) {
 	const n = matrix.length;
 	let k = 0;
 	let dir = -1;
@@ -539,7 +579,7 @@ const putdata = function(matrix, reserved, buf) {
  * XOR-masks the data portion of the matrix. repeating the call with the same
  * arguments will revert the prior call (convenient in the matrix evaluation).
  */
-const maskdata = function(matrix, reserved, mask) {
+const maskdata = function (matrix, reserved, mask) {
 	const maskf = MASKFUNCS[mask];
 	const n = matrix.length;
 	for (let i = 0; i < n; ++i) {
@@ -551,7 +591,7 @@ const maskdata = function(matrix, reserved, mask) {
 }
 
 /** puts the format information. */
-const putformatinfo = function(matrix, reserved, ecclevel, mask) {
+const putformatinfo = function (matrix, reserved, ecclevel, mask) {
 	const n = matrix.length;
 	const code = augumentbch((ecclevel << 3) | mask, 5, 0x537, 10) ^ 0x5412;
 	for (let i = 0; i < 15; ++i) {
@@ -576,7 +616,7 @@ const putformatinfo = function(matrix, reserved, ecclevel, mask) {
  * note: zxing seems to use the same procedure and in many cases its choice
  * agrees to ours, but sometimes it does not. practically it doesn't matter.
  */
-const evaluatematrix = function(matrix) {
+const evaluatematrix = function (matrix) {
 	// N1+(k-5) points for each consecutive row of k same-colored modules,
 	// where k >= 5. no overlapping row counts.
 	const PENALTY_CONSECUTIVE = 3;
@@ -591,13 +631,15 @@ const evaluatematrix = function(matrix) {
 	// i.e. k=1 for 55~60% and 40~45%, k=2 for 60~65% and 35~40%, etc.
 	const PENALTY_DENSITY = 10;
 
-	const evaluategroup = function(groups) { // assumes [W,B,W,B,W,...,B,W]
+	const evaluategroup = function (groups) { // assumes [W,B,W,B,W,...,B,W]
 		let score = 0;
 		for (let i = 0; i < groups.length; ++i) {
-			if (groups[i] >= 5) {score += PENALTY_CONSECUTIVE + (groups[i] - 5);}
+			if (groups[i] >= 5) {
+				score += PENALTY_CONSECUTIVE + (groups[i] - 5);
+			}
 		}
 		for (let i = 5; i < groups.length; i += 2) {
-			let p = groups[i];
+			const p = groups[i];
 			if (groups[i - 1] == p && groups[i - 2] == 3 * p && groups[i - 3] == p &&
 				groups[i - 4] == p && (groups[i - 5] >= 4 * p || groups[i + 1] >= 4 * p)) {
 				// this part differs from zxing...
@@ -608,29 +650,38 @@ const evaluatematrix = function(matrix) {
 	};
 
 	const n = matrix.length;
-	let score = 0; let nblacks = 0;
+	let score = 0;
+	let nblacks = 0;
 	for (let i = 0; i < n; ++i) {
 		const row = matrix[i];
 		let groups;
 
 		// evaluate the current row
 		groups = [0]; // the first empty group of white
-		for (let j = 0; j < n; ) {
+		for (let j = 0; j < n;) {
 			let k;
-			for (k = 0; j < n && row[j]; ++k) {++j;}
+			for (k = 0; j < n && row[j]; ++k) {
+				++j;
+			}
 			groups.push(k);
-			for (k = 0; j < n && !row[j]; ++k) {++j;}
+			for (k = 0; j < n && !row[j]; ++k) {
+				++j;
+			}
 			groups.push(k);
 		}
 		score += evaluategroup(groups);
 
 		// evaluate the current column
 		groups = [0];
-		for (let j = 0; j < n; ) {
+		for (let j = 0; j < n;) {
 			let k;
-			for (k = 0; j < n && matrix[j][i]; ++k) {++j;}
+			for (k = 0; j < n && matrix[j][i]; ++k) {
+				++j;
+			}
 			groups.push(k);
-			for (k = 0; j < n && !matrix[j][i]; ++k) {++j;}
+			for (k = 0; j < n && !matrix[j][i]; ++k) {
+				++j;
+			}
 			groups.push(k);
 		}
 		score += evaluategroup(groups);
@@ -648,7 +699,7 @@ const evaluatematrix = function(matrix) {
 		}
 	}
 
-	score += PENALTY_DENSITY * ((Math.abs(nblacks / n / n - 0.5) / 0.05) | 0);
+	score += PENALTY_DENSITY * (Math.trunc(Math.abs(nblacks / n / n - 0.5) / 0.05));
 	return score;
 };
 
@@ -656,20 +707,23 @@ const evaluatematrix = function(matrix) {
  * returns the fully encoded QR code matrix which contains given data.
  * it also chooses the best mask automatically when mask is -1.
  */
-const generate = function(data, ver, mode, ecclevel, mask) {
-	const v = VERSIONS[ver];
+const generate = function (data, ver, mode, ecclevel, mask) {
+	const v = /** @type {number[][]} */ (VERSIONS[ver]);
+	console.assert(Array.isArray(v), 'unknown version');
 	let buf = encode(ver, mode, data, ndatabits(ver, ecclevel) >> 3);
 	buf = augumenteccs(buf, v[1][ecclevel], GF256_GENPOLY[v[0][ecclevel]]);
 
 	const result = makebasematrix(ver);
-	const matrix = result.matrix; const reserved = result.reserved;
+	const matrix = result.matrix;
+	const reserved = result.reserved;
 	putdata(matrix, reserved, buf);
 
 	if (mask < 0) {
 		// find the best mask
 		maskdata(matrix, reserved, 0);
 		putformatinfo(matrix, reserved, ecclevel, 0);
-		let bestmask = 0; let bestscore = evaluatematrix(matrix);
+		let bestmask = 0;
+		let bestscore = evaluatematrix(matrix);
 		maskdata(matrix, reserved, 0);
 		for (mask = 1; mask < 8; ++mask) {
 			maskdata(matrix, reserved, mask);
@@ -725,10 +779,17 @@ const QRCode = {
 	 */
 
 	generate(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
-		const MODES = {'numeric': MODE_NUMERIC, 'alphanumeric': MODE_ALPHANUMERIC,
-			'octet': MODE_OCTET};
-		const ECCLEVELS = {'L': ECCLEVEL_L, 'M': ECCLEVEL_M, 'Q': ECCLEVEL_Q,
-			'H': ECCLEVEL_H};
+		const MODES = {
+			'numeric': MODE_NUMERIC,
+			'alphanumeric': MODE_ALPHANUMERIC,
+			'octet': MODE_OCTET
+		};
+		const ECCLEVELS = {
+			'L': ECCLEVEL_L,
+			'M': ECCLEVEL_M,
+			'Q': ECCLEVEL_Q,
+			'H': ECCLEVEL_H
+		};
 
 		let ver = options.version || -1;
 		const ecclevel = ECCLEVELS[(options.ecclevel || 'L').toUpperCase()];
@@ -756,7 +817,7 @@ const QRCode = {
 		}
 
 		data = validatedata(mode, data);
-		if (data === null) {
+		if (data == null) {
 			throw new Error('invalid data format');
 		}
 
@@ -789,7 +850,7 @@ const QRCode = {
 		const modsize = Math.max(options.modulesize || 5, 0.5);
 		const unit = options.unit || 'px';
 		const ratio = options.ratio || 1;
-		const margin = Math.max(options.margin === null ? 4 : options.margin, 0.0);
+		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
 
 		const e = document.createElement('div');
 		const n = matrix.length;
@@ -816,7 +877,7 @@ const QRCode = {
 		const matrix = QRCode.generate(data, options);
 		const n = matrix.length;
 		const modsize = Math.max(options.modulesize || 5, 0.5);
-		const margin = Math.max(options.margin === null ? 4 : options.margin, 0.0);
+		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
 		const size = modsize * (n + 2 * margin);
 
 		const common = ' class= "fg"' + ' width="' + modsize + '" height="' + modsize + '"/>';
@@ -853,14 +914,16 @@ const QRCode = {
 	generateCanvas(/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) {
 		const matrix = QRCode.generate(data, options);
 		const modsize = Math.max(options.modulesize || 5, 0.5);
-		const margin = Math.max(options.margin === null ? 4 : options.margin, 0);
+		const margin = Math.max(options.margin == null ? 4 : options.margin, 0);
 		const n = matrix.length;
 		const size = modsize * (n + 2 * margin);
 
-		const canvas = document.createElement('canvas'); let context;
+		const canvas = document.createElement('canvas');
 		canvas.width = canvas.height = size;
-		context = canvas.getContext('2d');
-		if (!context) {throw 'canvas support is needed for PNG output';}
+		const context = canvas.getContext('2d');
+		if (!context) {
+			throw new Error('canvas support is needed for PNG output');
+		}
 
 		context.fillStyle = '#fff';
 		context.fillRect(0, 0, size, size);
@@ -878,11 +941,13 @@ const QRCode = {
 		return canvas;
 	},
 
-	generateImage: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}, type) =>
+	generateImage: (/** @type {InputData} */ data,
+		/** @type {QRCodeOptions} */ options = {},
+		/** @type {Parameters<typeof HTMLCanvasElement.prototype.toDataURL>[0]} */ type) =>
 		QRCode.generateCanvas(data, options).toDataURL(type),
 
 	generatePNG: (/** @type {InputData} */ data, /** @type {QRCodeOptions} */ options = {}) =>
-		QRCode.generateImage(data, options, 'image/png'),
+		QRCode.generateImage(data, options, 'image/png')
 };
 
 export default QRCode;
