@@ -37,7 +37,7 @@
  */
 function getVersion(v) {
 	const VERSIONS = [
-		null,
+		undefined,
 		[[10, 7, 17, 13], [1, 1, 1, 1], []],
 		[[16, 10, 28, 22], [1, 1, 1, 1], [4, 16]],
 		[[26, 15, 22, 18], [1, 1, 2, 2], [4, 20]],
@@ -80,7 +80,7 @@ function getVersion(v) {
 		[[28, 30, 30, 30], [49, 25, 81, 68], [4, 28, 56, 84, 112, 140, 168]]];
 
 	const version = VERSIONS[v];
-	if (version == null) {
+	if (!version) {
 		throw new Error('unknown version');
 	}
 	return version;
@@ -116,7 +116,7 @@ const EccLevel = {
 
 /**
  * GF(2^8)-to-integer mapping with a reducing polynomial x^8+x^4+x^3+x^2+1
- * invariant: GF256_MAP[GF256_INVERT_MAP[i]] == i for all i in [1,256)
+ * invariant: GF256_MAP[GF256_INVERT_MAP[i]] === i for all i in [1,256)
  * @type {Array<number>}
  */
 const GF256_MAP = [];
@@ -166,14 +166,14 @@ const ALPHANUMERIC_MAP = Array.from('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-.
  * @type {Array<function(number, number): boolean>}
  */
 const MASKS = [
-	(i, j) => (i + j) % 2 == 0,
-	i => i % 2 == 0,
-	(_i, j) => j % 3 == 0,
-	(i, j) => (i + j) % 3 == 0,
-	(i, j) => ((Math.trunc(i / 2)) + (Math.trunc(j / 3))) % 2 == 0,
-	(i, j) => (i * j) % 2 + (i * j) % 3 == 0,
-	(i, j) => ((i * j) % 2 + (i * j) % 3) % 2 == 0,
-	(i, j) => ((i + j) % 2 + (i * j) % 3) % 2 == 0];
+	(i, j) => (i + j) % 2 === 0,
+	i => i % 2 === 0,
+	(_i, j) => j % 3 === 0,
+	(i, j) => (i + j) % 3 === 0,
+	(i, j) => ((Math.trunc(i / 2)) + (Math.trunc(j / 3))) % 2 === 0,
+	(i, j) => (i * j) % 2 + (i * j) % 3 === 0,
+	(i, j) => ((i * j) % 2 + (i * j) % 3) % 2 === 0,
+	(i, j) => ((i + j) % 2 + (i * j) % 3) % 2 === 0];
 
 /** @returns {boolean} whether the version information has to be embedded. */
 const needsVersionInfo = (/** @type {number} */ ver) => ver > 6;
@@ -305,6 +305,12 @@ const validateData = function (/** @type {Mode} */ mode, /** @type {InputData} *
 				// encode the string as a UTF-8 byte sequence.
 				return new TextEncoder().encode(data);
 			}
+
+			// reject null and non-array-like types
+			if (data === null || typeof data !== 'object' ||
+				typeof data.length !== 'number') {
+				return null;
+			}
 			return data;
 
 		default:
@@ -375,7 +381,7 @@ const encode = function (/** @type {number} */ ver, /** @type {Mode} */ mode,
 				pack(ALPHANUMERIC_MAP[text.charAt(i - 1)] * 45 +
 					ALPHANUMERIC_MAP[text.charAt(i)], 11);
 			}
-			if (dataSize % 2 == 1) {
+			if (dataSize % 2 === 1) {
 				pack(ALPHANUMERIC_MAP[text.charAt(i - 1)], 6);
 			}
 			break;
@@ -554,8 +560,8 @@ const makeBaseMatrix = function (/** @type {number} */ ver) {
 	const aligns = v[2];
 	const m = aligns.length;
 	for (let i = 0; i < m; ++i) {
-		const min = (i == 0 || i == m - 1 ? 1 : 0);
-		const max = (i == 0 ? m - 1 : m);
+		const min = (i === 0 || i === m - 1 ? 1 : 0);
+		const max = (i === 0 ? m - 1 : m);
 		for (let j = min; j < max; ++j) {
 			matrixCopy(aligns[i], aligns[j], 5, 5, [0x1f, 0x11, 0x15, 0x11, 0x1f]);
 		}
@@ -588,7 +594,7 @@ const putData = function (/** @type {Array<Array<number>>} */ matrix,
 	let k = 0;
 	let dir = -1;
 	for (let i = n - 1; i >= 0; i -= 2) {
-		if (i == 6) {
+		if (i === 6) {
 			--i;
 		} // skip the entire timing pattern column
 		let jj = (dir < 0 ? n - 1 : 0);
@@ -674,7 +680,8 @@ const evaluateMatrix = function (/** @type {Array<Array<number>>} */ matrix) {
 	// i.e. k=1 for 55~60% and 40~45%, k=2 for 60~65% and 35~40%, etc.
 	const PENALTY_DENSITY = 10;
 
-	const evaluateGroup = function (/** @type {Array<number>} */ groups) { // assumes [W,B,W,B,W,...,B,W]
+	const evaluateGroup = function (
+		/** @type {Array<number>} */ groups) { // assumes [W,B,W,B,W,...,B,W]
 		let score = 0;
 		for (let i = 0; i < groups.length; ++i) {
 			if (groups[i] >= 5) {
@@ -683,8 +690,8 @@ const evaluateMatrix = function (/** @type {Array<Array<number>>} */ matrix) {
 		}
 		for (let i = 5; i < groups.length; i += 2) {
 			const p = groups[i];
-			if (groups[i - 1] == p && groups[i - 2] == 3 * p && groups[i - 3] == p &&
-				groups[i - 4] == p && (groups[i - 5] >= 4 * p || groups[i + 1] >= 4 * p)) {
+			if (groups[i - 1] === p && groups[i - 2] === 3 * p && groups[i - 3] === p &&
+				groups[i - 4] === p && (groups[i - 5] >= 4 * p || groups[i + 1] >= 4 * p)) {
 				// this part differs from zxing...
 				score += PENALTY_FINDER_LIKE;
 			}
@@ -736,7 +743,7 @@ const evaluateMatrix = function (/** @type {Array<Array<number>>} */ matrix) {
 			const p = row[j];
 			numBlacks += p;
 			// at least comparison with next row should be strict...
-			if (row[j - 1] == p && nextRow[j] === p && nextRow[j - 1] === p) {
+			if (row[j - 1] === p && nextRow[j] === p && nextRow[j - 1] === p) {
 				score += PENALTY_TWO_BY_TWO;
 			}
 		}
@@ -839,7 +846,7 @@ const QRCode = {
 	_getRenderOptions(/** @type {QRCodeOptions} */ options = {}) {
 		return {
 			moduleSize: Math.max(options.modulesize || 5, 0.5),
-			margin: Math.max(options.margin == null ? 4 : options.margin, 0),
+			margin: Math.max(typeof options.margin === 'number' ? options.margin : 4, 0),
 			unit: options.unit || 'px',
 			ratio: options.ratio || 1
 		};
@@ -881,13 +888,13 @@ const QRCode = {
 			} else {
 				mode = Mode.OCTET;
 			}
-		} else if (!(mode == Mode.NUMERIC || mode == Mode.ALPHANUMERIC ||
-			mode == Mode.OCTET)) {
+		} else if (!(mode === Mode.NUMERIC || mode === Mode.ALPHANUMERIC ||
+			mode === Mode.OCTET)) {
 			throw new Error('invalid or unsupported mode');
 		}
 
 		const dataTmp = validateData(mode, data);
-		if (dataTmp == null) {
+		if (dataTmp === null) {
 			throw new Error('invalid data format');
 		}
 		data = dataTmp;
@@ -910,7 +917,7 @@ const QRCode = {
 			throw new Error('invalid version');
 		}
 
-		if (mask != -1 && (mask < 0 || mask > 8)) {
+		if (mask !== -1 && (mask < 0 || mask > 8)) {
 			throw new Error('invalid mask');
 		}
 
