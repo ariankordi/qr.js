@@ -2,7 +2,7 @@
   "name": "qrjs",
   "main": "qr.js",
   "types": "dist/qr.d.ts",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "description": "QR code generator in JavaScript",
   "homepage": "https://github.com/ariankordi/qr.js",

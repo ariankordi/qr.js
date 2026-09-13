@@ -17,14 +17,14 @@ This fork modernizes the library a little bit.
 
 * Install via NPM from GitHub:
 ```
-npm install qrjs@github:ariankordi/qr.js#v0.4.1
+npm install qrjs@github:ariankordi/qr.js#v0.4.2
 ```
 
 ### Including on a web page
 
 1. Without ES modules.
 ```html
-<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@0.4.1/dist/qr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ariankordi/qr.js@0.4.2/dist/qr.min.js"></script>
 <script>
 	console.debug(QRCode);
 	document.body.appendChild(QRCode.generateHTML('Hello 👋', {ecclevel: 'H'}));
@@ -36,7 +36,7 @@ npm install qrjs@github:ariankordi/qr.js#v0.4.1
 <script type="importmap">
 {
   "imports": {
-    "qrjs": "https://esm.sh/gh/ariankordi/qr.js@v0.4.1"
+    "qrjs": "https://esm.sh/gh/ariankordi/qr.js@v0.4.2"
   }
 }
 </script>
